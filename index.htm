@@ -521,8 +521,6 @@ Developer: Reload Window<!DOCTYPE html>
             for (let x = 0; x < VIRTUAL_W; x += 60) {
                 trackCtx.fillRect(x, 0, 30, VIRTUAL_H);
             }
-            drawDecorations();
-
             // Função auxiliar para traçar o caminho suave da pista
             function traceCircuit(context) {
                 context.beginPath();
@@ -595,13 +593,15 @@ Developer: Reload Window<!DOCTYPE html>
                     trackCtx.fillRect(startX + col, startY + row, sqSize, sqSize);
                 }
             }
+
+            drawDecorations();
         }
 
         function drawDecorations() {
             if (currentTrack.theme === 'city') {
                 const buildings = [
-                    [35, 95, 80, 105], [1060, 55, 90, 120], [75, 545, 105, 90],
-                    [1010, 570, 125, 80], [430, 45, 70, 55], [780, 650, 90, 40]
+                    [420, 400, 70, 70], [540, 470, 64, 60], [740, 470, 72, 60],
+                    [830, 350, 74, 68], [460, 300, 68, 58]
                 ];
                 buildings.forEach(([x, y, w, h], i) => {
                     trackCtx.fillStyle = i % 2 ? '#0f172a' : '#1e1b4b';
