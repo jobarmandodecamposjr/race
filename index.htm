@@ -150,7 +150,9 @@
                     </button>
                 </div>
 
-                <p id="statusMessage" class="text-center text-xs text-amber-400 min-h-[16px]"></p>
+                <div id="statusBox" class="hidden bg-slate-950/90 border border-amber-500/40 rounded-xl p-3 text-center">
+                    <p id="statusMessage" class="text-xs text-amber-400 font-medium leading-relaxed"></p>
+                </div>
             </div>
         </div>
 
@@ -240,7 +242,20 @@
         const VIRTUAL_W = 1200;
         const VIRTUAL_H = 750;
         const TOTAL_LAPS = 3;
-        const PEER_PREFIX = "turbolan-v1-"; // Prefixo único para evitar conflito no servidor público PeerJS
+        const PEER_PREFIX = "turbolan-v2-"; // Prefixo atualizado
+
+        // Configuração ICE/STUN para permitir descoberta rápida de IPs na mesma rede Wi-Fi e internet
+        const PEER_CONFIG = {
+            debug: 1,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        };
 
         // Pontos centrais que definem o traçado fechado da pista (Circuito estilo Interlagos/Kart)
         const TRACK_WAYPOINTS = [
@@ -273,6 +288,7 @@
         let roomCode = '';
         let connections = {}; // Mapa de conexões (Host guarda todos; Cliente guarda só o Host)
         let hostConn = null;
+        let connectTimeout = null;
 
         // Dados do jogador local
         let myId = 'local';
@@ -778,22 +794,50 @@
             return code;
         }
 
-        function setStatus(msg) {
-            document.getElementById('statusMessage').textContent = msg;
+        function setStatus(msg, isError = false) {
+            const box = document.getElementById('statusBox');
+            const text = document.getElementById('statusMessage');
+            if (!msg) {
+                box.classList.add('hidden');
+                text.textContent = '';
+                return;
+            }
+            box.classList.remove('hidden');
+            box.className = isError
+                ? 'bg-rose-950/80 border border-rose-500/50 rounded-xl p-3 text-center'
+                : 'bg-slate-950/90 border border-amber-500/40 rounded-xl p-3 text-center';
+            text.className = isError
+                ? 'text-xs text-rose-300 font-medium leading-relaxed'
+                : 'text-xs text-amber-400 font-medium leading-relaxed';
+            text.innerHTML = msg;
+        }
+
+        function clearConnectTimeout() {
+            if (connectTimeout) {
+                clearTimeout(connectTimeout);
+                connectTimeout = null;
+            }
         }
 
         // 1. CRIAR SALA (HOST)
         function createRoom() {
             getPlayerInfo();
-            setStatus('Criando sala na rede...');
+            setStatus('⏳ Registrando sala no servidor de sinalização...');
             isHost = true;
             isSoloBot = false;
             roomCode = generateRoomCode();
 
+            clearConnectTimeout();
             if (peer) peer.destroy();
-            peer = new Peer(PEER_PREFIX + roomCode);
+            peer = new Peer(PEER_PREFIX + roomCode, PEER_CONFIG);
+
+            connectTimeout = setTimeout(() => {
+                setStatus('⚠️ Não foi possível registrar a sala. Verifique se o seu dispositivo tem acesso à internet para iniciar o pareamento Wi-Fi.', true);
+            }, 10000);
 
             peer.on('open', (id) => {
+                clearConnectTimeout();
+                setStatus('');
                 myId = id;
                 players = {};
                 players[myId] = new Car(myId, myName, myColor, 0);
@@ -806,6 +850,11 @@
                     return;
                 }
 
+                // Garante que o canal está aberto antes de escutar dados
+                conn.on('open', () => {
+                    connections[conn.peer] = conn;
+                });
+
                 conn.on('data', (data) => handleHostReceiveData(conn, data));
                 conn.on('close', () => {
                     delete connections[conn.peer];
@@ -815,8 +864,16 @@
             });
 
             peer.on('error', (err) => {
-                console.error(err);
-                setStatus('Erro ao criar sala. Tente novamente.');
+                clearConnectTimeout();
+                console.error('PeerJS Host Error:', err);
+                if (err.type === 'unavailable-id') {
+                    // Código já em uso, tenta gerar outro automaticamente
+                    createRoom();
+                } else if (err.type === 'network' || err.type === 'server-error') {
+                    setStatus('❌ Falha de rede ao conectar ao servidor de pareamento. Verifique sua conexão Wi-Fi.', true);
+                } else {
+                    setStatus(`❌ Erro ao criar sala (${err.type}). Tente novamente.`, true);
+                }
             });
         }
 
@@ -825,23 +882,46 @@
             getPlayerInfo();
             const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
             if (code.length !== 4) {
-                setStatus('Digite o código de 4 letras da sala.');
+                setStatus('⚠️ Digite o código de 4 letras/números exibido na tela do líder da sala.', true);
                 return;
             }
 
-            setStatus(`Conectando à sala ${code}...`);
+            setStatus(`⏳ Conectando à sala <strong>${code}</strong>...`);
             isHost = false;
             isSoloBot = false;
             roomCode = code;
 
+            clearConnectTimeout();
             if (peer) peer.destroy();
-            peer = new Peer();
+            peer = new Peer(PEER_CONFIG);
+
+            // Temporizador caso o navegador/roteador bloqueie a conexão P2P
+            connectTimeout = setTimeout(() => {
+                if (gameState === 'MENU') {
+                    if (peer) peer.destroy();
+                    setStatus(
+                        `❌ Tempo esgotado ao tentar entrar na sala <strong>${code}</strong>.<br>` +
+                        `• Verifique se o código foi digitado corretamente.<br>` +
+                        `• Certifique-se de que o líder ainda está na tela de espera (Lobby).<br>` +
+                        `• Alguns roteadores Wi-Fi têm "Isolamento de Clientes (AP Isolation)" ativado, bloqueando comunicação direta entre aparelhos.`,
+                        true
+                    );
+                }
+            }, 10000);
 
             peer.on('open', (id) => {
                 myId = id;
-                hostConn = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+                setStatus(`🔍 Sala <strong>${code}</strong> localizada! Estabelecendo túnel direto via Wi-Fi...`);
+
+                // Nota: serialization 'json' melhora compatibilidade entre navegadores diferentes (ex: Safari iOS + Chrome Android/PC)
+                hostConn = peer.connect(PEER_PREFIX + roomCode, {
+                    reliable: true,
+                    serialization: 'json'
+                });
 
                 hostConn.on('open', () => {
+                    clearConnectTimeout();
+                    setStatus('');
                     // Envia dados do jogador ao Host
                     hostConn.send({
                         type: 'JOIN',
@@ -853,14 +933,29 @@
 
                 hostConn.on('data', (data) => handleClientReceiveData(data));
 
+                hostConn.on('error', (err) => {
+                    clearConnectTimeout();
+                    console.error('Erro na conexão com Host:', err);
+                    setStatus('❌ Erro na comunicação direta com o líder da sala. Tente entrar novamente.', true);
+                });
+
                 hostConn.on('close', () => {
-                    setStatus('Conexão com o líder da sala perdida.');
+                    clearConnectTimeout();
                     resetToMenu();
+                    setStatus('⚠️ Você foi desconectado porque o líder fechou a sala ou a corrida já começou.', true);
                 });
             });
 
-            peer.on('error', () => {
-                setStatus('Sala não encontrada. Verifique o código e o Wi-Fi.');
+            peer.on('error', (err) => {
+                clearConnectTimeout();
+                console.error('PeerJS Client Error:', err);
+                if (err.type === 'peer-unavailable') {
+                    setStatus(`❌ A sala <strong>${code}</strong> não foi encontrada. Confira se o código está certo e se a sala já foi criada.`, true);
+                } else if (err.type === 'network' || err.type === 'server-error') {
+                    setStatus('❌ Sem conexão com o servidor de sinalização. Verifique seu Wi-Fi.', true);
+                } else {
+                    setStatus(`❌ Não foi possível conectar (${err.type}). Verifique se ambos estão no mesmo Wi-Fi.`, true);
+                }
             });
         }
 
@@ -885,6 +980,8 @@
                 const idx = Object.keys(players).length;
                 players[conn.peer] = new Car(conn.peer, data.name, data.color, idx);
                 broadcastLobbyState();
+                // Envia confirmação direta imediata para o novo jogador
+                conn.send({ type: 'LOBBY_UPDATE', players: serializePlayers() });
             } else if (data.type === 'INPUT') {
                 if (players[conn.peer]) {
                     players[conn.peer].inputs = data.inputs;
