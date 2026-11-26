@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Developer: Reload Window<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -571,15 +571,30 @@
                 this.checkpoint = 0; // 0 = largada, 1 = metade da pista (topo)
                 this.finished = false;
                 this.finishTime = 0;
+                this.finishPosition = 0;
                 this.progressScore = 0;
                 this.inputs = { up: false, down: false, left: false, right: false };
             }
 
             update(dt) {
+                if (this.finished) {
+                    const cruiseSpeed = 28;
+                    this.updateBotAI();
+                    this.speed += (cruiseSpeed - this.speed) * Math.min(1, 7 * dt);
+                    const turn = 3.4 * Math.min(1, cruiseSpeed / 120) * dt;
+                    if (this.inputs.left) this.angle -= turn;
+                    if (this.inputs.right) this.angle += turn;
+                    this.vx = Math.cos(this.angle) * this.speed;
+                    this.vy = Math.sin(this.angle) * this.speed;
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                    enforceTrackBoundaries(this);
+                    return;
+                }
                 if (gameState !== 'RACING') return;
 
                 // Se for Bot, calcula direção automaticamente
-                if (this.isBot || this.finished) {
+                if (this.isBot) {
                     this.updateBotAI();
                 }
 
@@ -672,8 +687,10 @@
                     if (this.lap < TOTAL_LAPS) {
                         this.lap++;
                     } else {
-                        this.finished = true;
                         this.finishTime = performance.now() - raceStartTime;
+                        this.finishPosition = Object.values(players)
+                            .filter(player => player.finished).length + 1;
+                        this.finished = true;
                         checkRaceEnd();
                     }
                 }
@@ -693,6 +710,29 @@
             draw(ctx) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
+
+                if (this.finished) {
+                    const bob = Math.sin(performance.now() / 180) * 3;
+                    const pulse = 1 + Math.sin(performance.now() / 220) * 0.08;
+                    const label = `${this.finishPosition}º LUGAR`;
+                    ctx.save();
+                    ctx.translate(0, -55 + bob);
+                    ctx.scale(pulse, pulse);
+                    ctx.font = 'bold 15px Orbitron, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const labelWidth = ctx.measureText(label).width + 20;
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                    ctx.beginPath();
+                    ctx.roundRect(-labelWidth / 2, -13, labelWidth, 26, 8);
+                    ctx.fill();
+                    ctx.strokeStyle = this.finishPosition === 1 ? '#fbbf24' : '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = this.finishPosition === 1 ? '#fbbf24' : '#ffffff';
+                    ctx.fillText(label, 0, 0);
+                    ctx.restore();
+                }
 
                 // Nome do piloto acima do carro
                 ctx.font = 'bold 12px Inter, sans-serif';
@@ -1044,7 +1084,7 @@
                     id: p.id, name: p.name, color: p.color, index: p.index,
                     x: p.x, y: p.y, angle: p.angle, speed: p.speed,
                     lap: p.lap, finished: p.finished, finishTime: p.finishTime,
-                    progressScore: p.progressScore
+                    finishPosition: p.finishPosition, progressScore: p.progressScore
                 };
             }
             return out;
@@ -1311,9 +1351,11 @@
             lastTime = now;
 
             // 1. Atualização de física (Somente o Host calcula a física oficial)
-            if (isHost && gameState === 'RACING') {
-                Object.values(players).forEach(car => car.update(dt));
-                resolveCarCollisions();
+            if (isHost && (gameState === 'RACING' || gameState === 'FINISHED')) {
+                Object.values(players).forEach(car => {
+                    if (gameState === 'RACING' || car.finished) car.update(dt);
+                });
+                if (gameState === 'RACING') resolveCarCollisions();
 
                 // Envia estado atualizado para os clientes na rede ~30 vezes por segundo
                 netSyncTimer += dt;
