@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turbo Drift LAN - Corrida Top-Down</title>
+    <!-- Tailwind CSS para UI rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS para conexão P2P (WebRTC) sem precisar configurar servidor próprio -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Fonte estilo Arcade/Racing -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: none; /* Evita zoom e scroll no mobile */
+            user-select: none;
+        }
+        .font-racing {
+            font-family: 'Orbitron', sans-serif;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            background-color: #1e293b;
+        }
+        /* Botões estilizados para jogos */
+        .btn-racing {
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .btn-racing:active {
+            transform: scale(0.95);
+        }
+        /* Controles Touch */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            touch-action: none;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(56, 189, 248, 0.5);
+            border-color: #38bdf8;
+            transform: scale(0.92);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-between p-2 sm:p-4 bg-slate-950">
+
+    <!-- CABEÇALHO / HUD SUPERIOR -->
+    <header class="w-full max-w-6xl flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-4 py-2 rounded-xl z-10">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🏎️</span>
+            <h1 class="font-racing font-black text-lg sm:text-xl bg-gradient-to-r from-amber-400 to-rose-500 bg-clip-text text-transparent">
+                TURBO LAN
+            </h1>
+            <span id="roomBadge" class="hidden px-2.5 py-0.5 text-xs font-racing font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full">
+                SALA: <span id="roomCodeDisplay">----</span>
+            </span>
+        </div>
+
+        <!-- Placar / Voltas -->
+        <div id="hudStats" class="hidden flex items-center gap-4 sm:gap-6 text-sm font-racing">
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400">VOLTA</span>
+                <span id="lapDisplay" class="text-amber-400 font-bold text-base">1 / 3</span>
+            </div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400">POSIÇÃO</span>
+                <span id="posDisplay" class="text-sky-400 font-bold text-base">1º</span>
+            </div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400">TEMPO</span>
+                <span id="timeDisplay" class="text-slate-200 font-bold text-base">00:00.0</span>
+            </div>
+        </div>
+
+        <button id="btnLeave" onclick="resetToMenu()" class="hidden btn-racing px-3 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-500 rounded-lg text-white">
+            Sair
+        </button>
+    </header>
+
+    <!-- ÁREA CENTRAL DO JOGO (CANVAS) -->
+    <main id="gameContainer" class="relative flex-1 w-full max-w-6xl flex items-center justify-center my-2 overflow-hidden">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- OVERLAY: MENU INICIAL E LOBBY WI-FI -->
+        <div id="menuOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 rounded-xl z-20">
+            <div class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
+                <div class="text-center space-y-1">
+                    <h2 class="font-racing text-2xl sm:text-3xl font-black text-white">CORRIDA NA REDE</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Conecte dispositivos no mesmo Wi-Fi usando o código da sala</p>
+                </div>
+
+                <!-- Configuração do Jogador -->
+                <div class="space-y-3 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">SEU NOME DE PILOTO</label>
+                        <input type="text" id="playerNameInput" maxlength="12" placeholder="Ex: Senna" 
+                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">COR DO CARRO</label>
+                        <div class="flex gap-2 justify-between" id="colorPicker">
+                            <button type="button" data-color="#ef4444" class="color-opt w-8 h-8 rounded-full bg-red-500 ring-2 ring-white scale-110"></button>
+                            <button type="button" data-color="#3b82f6" class="color-opt w-8 h-8 rounded-full bg-blue-500 opacity-70 hover:opacity-100"></button>
+                            <button type="button" data-color="#10b981" class="color-opt w-8 h-8 rounded-full bg-emerald-500 opacity-70 hover:opacity-100"></button>
+                            <button type="button" data-color="#f59e0b" class="color-opt w-8 h-8 rounded-full bg-amber-500 opacity-70 hover:opacity-100"></button>
+                            <button type="button" data-color="#a855f7" class="color-opt w-8 h-8 rounded-full bg-purple-500 opacity-70 hover:opacity-100"></button>
+                            <button type="button" data-color="#ec4899" class="color-opt w-8 h-8 rounded-full bg-pink-500 opacity-70 hover:opacity-100"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="space-y-3">
+                    <button onclick="createRoom()" class="btn-racing w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-racing font-bold rounded-xl shadow-lg shadow-emerald-900/40">
+                        📡 Criar Sala (Host Wi-Fi)
+                    </button>
+
+                    <div class="flex gap-2">
+                        <input type="text" id="joinCodeInput" maxlength="4" placeholder="CÓDIGO" 
+                               class="w-1/3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center font-racing font-bold uppercase tracking-widest text-amber-400 focus:outline-none focus:border-amber-500">
+                        <button onclick="joinRoom()" class="btn-racing flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-racing font-bold rounded-xl shadow-lg shadow-sky-900/40">
+                            🔗 Entrar na Sala
+                        </button>
+                    </div>
+
+                    <div class="relative flex py-1 items-center">
+                        <div class="flex-grow border-t border-slate-800"></div>
+                        <span class="flex-shrink mx-3 text-xs text-slate-500">OU</span>
+                        <div class="flex-grow border-t border-slate-800"></div>
+                    </div>
+
+                    <button onclick="startSoloBot()" class="btn-racing w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-racing text-sm font-bold rounded-xl">
+                        🤖 Treinar Contra Bot
+                    </button>
+                </div>
+
+                <p id="statusMessage" class="text-center text-xs text-amber-400 min-h-[16px]"></p>
+            </div>
+        </div>
+
+        <!-- OVERLAY: SALA DE ESPERA (LOBBY) -->
+        <div id="lobbyOverlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 rounded-xl z-20">
+            <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-5">
+                <div class="text-center">
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Conectado na Rede Local</span>
+                    <h3 class="font-racing text-xl font-bold text-white mt-1">CÓDIGO DA SALA</h3>
+                    <div class="my-2 flex items-center justify-center gap-2">
+                        <span id="lobbyCodeText" class="font-racing text-4xl font-black tracking-widest text-amber-400 bg-slate-950 px-5 py-2 rounded-xl border border-slate-800">----</span>
+                        <button onclick="copyRoomCode()" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300" title="Copiar Código">
+                            📋
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400">Peça para os amigos na mesma rede Wi-Fi digitarem este código.</p>
+                </div>
+
+                <!-- Lista de Pilotos -->
+                <div class="bg-slate-950/70 rounded-xl p-3 border border-slate-800">
+                    <div class="text-xs font-semibold text-slate-400 mb-2 flex justify-between">
+                        <span>PILOTOS NO GRID</span>
+                        <span id="playerCountText">1/6</span>
+                    </div>
+                    <ul id="lobbyPlayerList" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- Preenchido via JS -->
+                    </ul>
+                </div>
+
+                <div id="hostControls" class="hidden">
+                    <button onclick="hostStartRace()" class="btn-racing w-full py-3.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-racing font-black rounded-xl shadow-lg">
+                        🏁 INICIAR CORRIDA!
+                    </button>
+                </div>
+                <div id="clientWaitMsg" class="hidden text-center text-sm text-sky-400 animate-pulse font-semibold">
+                    Aguardando o líder da sala iniciar a corrida...
+                </div>
+            </div>
+        </div>
+
+        <!-- OVERLAY: CONTAGEM REGRESSIVA / FIM DE CORRIDA -->
+        <div id="raceBanner" class="hidden pointer-events-none absolute inset-0 flex flex-col items-center justify-center z-10">
+            <div id="bannerText" class="font-racing text-6xl sm:text-8xl font-black text-amber-400 drop-shadow-[0_5px_15px_rgba(0,0,0,0.9)]">
+                3
+            </div>
+            <div id="podiumBox" class="hidden pointer-events-auto mt-4 bg-slate-900/95 border border-slate-700 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+                <h3 class="font-racing text-2xl font-black text-amber-400">🏆 RESULTADO FINAL</h3>
+                <ol id="podiumList" class="text-left space-y-2 text-sm font-semibold"></ol>
+                <button id="btnRestartRace" onclick="hostStartRace()" class="hidden btn-racing w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-racing font-bold rounded-xl">
+                    🔄 Correr Novamente
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- RODAPÉ: INSTRUÇÕES DESKTOP & CONTROLES TOUCH MOBILE -->
+    <footer class="w-full max-w-6xl flex items-center justify-between px-2 pb-1 z-10">
+        <!-- Dica Desktop -->
+        <div class="hidden md:flex items-center gap-4 text-xs text-slate-400 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
+            <span>🎮 <strong class="text-slate-200">WASD</strong> ou <strong class="text-slate-200">Setas</strong> para dirigir</span>
+            <span>•</span>
+            <span>🛞 Faça curvas suaves para não derrapar na grama!</span>
+        </div>
+
+        <!-- Controles Touch (Visíveis em telas menores ou touch) -->
+        <div class="flex md:hidden w-full justify-between items-center px-2">
+            <div class="flex gap-3">
+                <button id="touchLeft" class="touch-btn w-14 h-14 text-2xl">◀</button>
+                <button id="touchRight" class="touch-btn w-14 h-14 text-2xl">▶</button>
+            </div>
+            <div class="flex gap-3">
+                <button id="touchDown" class="touch-btn w-14 h-14 text-lg bg-rose-500/20 border-rose-400/40">RÉ</button>
+                <button id="touchUp" class="touch-btn w-16 h-16 text-xl bg-emerald-500/25 border-emerald-400/50">🚀</button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * CONFIGURAÇÕES DA PISTA E CONSTANTES DO JOGO
+         * ============================================================================
+         * Usamos um sistema de coordenadas virtuais fixas (1200 x 750) que é escalado
+         * automaticamente para caber perfeitamente em qualquer tela, garantindo que
+         * todos os jogadores vejam 100% da pista ao mesmo tempo e com a mesma física.
+         */
+        const VIRTUAL_W = 1200;
+        const VIRTUAL_H = 750;
+        const TOTAL_LAPS = 3;
+        const PEER_PREFIX = "turbolan-v1-"; // Prefixo único para evitar conflito no servidor público PeerJS
+
+        // Pontos centrais que definem o traçado fechado da pista (Circuito estilo Interlagos/Kart)
+        const TRACK_WAYPOINTS = [
+            { x: 600, y: 630 }, // Reta principal (Largada)
+            { x: 950, y: 630 }, // Final da reta
+            { x: 1080, y: 530 }, // Curva 1
+            { x: 1060, y: 240 }, // Reta oposta direita
+            { x: 930, y: 130 }, // Curva 2
+            { x: 720, y: 140 }, // Curva 3
+            { x: 620, y: 270 }, // Miolo - S do Senna
+            { x: 480, y: 270 }, // Miolo
+            { x: 380, y: 140 }, // Curva 4
+            { x: 190, y: 150 }, // Curva 5
+            { x: 120, y: 310 }, // Reta esquerda
+            { x: 140, y: 520 }, // Curva da junção
+            { x: 270, y: 630 }  // Entrada da reta principal
+        ];
+        const TRACK_WIDTH = 115; // Largura do asfalto
+
+        // Elementos DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('gameContainer');
+
+        // Estado Global
+        let gameState = 'MENU'; // MENU, LOBBY, COUNTDOWN, RACING, FINISHED
+        let isHost = false;
+        let isSoloBot = false;
+        let peer = null;
+        let roomCode = '';
+        let connections = {}; // Mapa de conexões (Host guarda todos; Cliente guarda só o Host)
+        let hostConn = null;
+
+        // Dados do jogador local
+        let myId = 'local';
+        let myName = 'Piloto';
+        let myColor = '#ef4444';
+
+        // Lista de carros na corrida (id -> objeto Car)
+        let players = {};
+        let skidMarks = []; // Marcas de pneu no asfalto
+        let raceStartTime = 0;
+        let countdownValue = 3;
+
+        // Controles
+        const keys = { up: false, down: false, left: false, right: false };
+
+        // Canvas offscreen para pré-renderizar a pista (melhora muito o FPS)
+        const trackCanvas = document.createElement('canvas');
+        trackCanvas.width = VIRTUAL_W;
+        trackCanvas.height = VIRTUAL_H;
+        const trackCtx = trackCanvas.getContext('2d');
+
+        /**
+         * ============================================================================
+         * INICIALIZAÇÃO E REDIMENSIONAMENTO RESPONSIVO
+         * ============================================================================
+         */
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            const aspect = VIRTUAL_W / VIRTUAL_H;
+            let w = rect.width;
+            let h = rect.height;
+
+            if (w / h > aspect) {
+                w = h * aspect;
+            } else {
+                h = w / aspect;
+            }
+
+            canvas.style.width = `${Math.floor(w)}px`;
+            canvas.style.height = `${Math.floor(h)}px`;
+            canvas.width = VIRTUAL_W;
+            canvas.height = VIRTUAL_H;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Seleção de cor no menu
+        document.querySelectorAll('.color-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.color-opt').forEach(b => {
+                    b.classList.remove('ring-2', 'ring-white', 'scale-110');
+                    b.classList.add('opacity-70');
+                });
+                btn.classList.add('ring-2', 'ring-white', 'scale-110');
+                btn.classList.remove('opacity-70');
+                myColor = btn.dataset.color;
+            });
+        });
+
+        /**
+         * ============================================================================
+         * GERAÇÃO VISUAL DA PISTA (PRÉ-RENDERIZADA)
+         * ============================================================================
+         */
+        function buildTrackGraphics() {
+            // 1. Gramado base com textura sutil
+            trackCtx.fillStyle = '#15803d'; // Verde grama vibrante
+            trackCtx.fillRect(0, 0, VIRTUAL_W, VIRTUAL_H);
+
+            // Listras de corte de grama
+            trackCtx.fillStyle = '#166534';
+            for (let x = 0; x < VIRTUAL_W; x += 60) {
+                trackCtx.fillRect(x, 0, 30, VIRTUAL_H);
+            }
+
+            // Função auxiliar para traçar o caminho suave da pista
+            function traceCircuit(context) {
+                context.beginPath();
+                const pts = TRACK_WAYPOINTS;
+                // Usar curvas quadráticas nos pontos médios para suavizar todas as curvas
+                let midX = (pts[pts.length - 1].x + pts[0].x) / 2;
+                let midY = (pts[pts.length - 1].y + pts[0].y) / 2;
+                context.moveTo(midX, midY);
+
+                for (let i = 0; i < pts.length; i++) {
+                    const next = pts[(i + 1) % pts.length];
+                    const nextMidX = (pts[i].x + next.x) / 2;
+                    const nextMidY = (pts[i].y + next.y) / 2;
+                    context.quadraticCurveTo(pts[i].x, pts[i].y, nextMidX, nextMidY);
+                }
+                context.closePath();
+            }
+
+            trackCtx.lineJoin = 'round';
+            trackCtx.lineCap = 'round';
+
+            // 2. Guard-rail / Mureta externa de proteção
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = '#94a3b8';
+            trackCtx.lineWidth = TRACK_WIDTH + 34;
+            trackCtx.stroke();
+
+            // 3. Área de escape / Brita interna
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = '#475569';
+            trackCtx.lineWidth = TRACK_WIDTH + 24;
+            trackCtx.stroke();
+
+            // 4. Zebras (Vermelho e Branco)
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = '#ef4444';
+            trackCtx.lineWidth = TRACK_WIDTH + 14;
+            trackCtx.stroke();
+
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = '#ffffff';
+            trackCtx.lineWidth = TRACK_WIDTH + 14;
+            trackCtx.setLineDash([22, 22]);
+            trackCtx.stroke();
+            trackCtx.setLineDash([]); // Reseta tracejado
+
+            // 5. Asfalto principal
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = '#334155';
+            trackCtx.lineWidth = TRACK_WIDTH;
+            trackCtx.stroke();
+
+            // 5. Linha tracejada central do asfalto
+            traceCircuit(trackCtx);
+            trackCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            trackCtx.lineWidth = 3;
+            trackCtx.setLineDash([18, 24]);
+            trackCtx.stroke();
+            trackCtx.setLineDash([]);
+
+            // 6. Linha de Largada / Chegada (Xadrez)
+            const startX = 600;
+            const startY = 630;
+            const halfW = TRACK_WIDTH / 2;
+            const sqSize = 10;
+            for (let row = -halfW; row < halfW; row += sqSize) {
+                for (let col = -10; col < 10; col += sqSize) {
+                    const isWhite = ((Math.floor(row / sqSize) + Math.floor(col / sqSize)) % 2 === 0);
+                    trackCtx.fillStyle = isWhite ? '#ffffff' : '#0f172a';
+                    trackCtx.fillRect(startX + col, startY + row, sqSize, sqSize);
+                }
+            }
+
+            // 7. Decoração: Arquibancada e árvores simples fora da pista
+            drawDecorations();
+        }
+
+        function drawDecorations() {
+            // Arquibancada na reta principal
+            trackCtx.fillStyle = '#475569';
+            trackCtx.fillRect(460, 705, 280, 32);
+            trackCtx.fillStyle = '#cbd5e1';
+            trackCtx.fillRect(465, 710, 270, 8);
+            trackCtx.fillStyle = '#ef4444';
+            trackCtx.fillRect(465, 722, 270, 8);
+
+            // Árvores decorativas em pontos seguros longe do asfalto
+            const trees = [
+                {x: 60, y: 60}, {x: 1140, y: 70}, {x: 1140, y: 680}, {x: 60, y: 680},
+                {x: 550, y: 450}, {x: 680, y: 450}, {x: 820, y: 420}, {x: 330, y: 420}
+            ];
+            trees.forEach(t => {
+                trackCtx.fillStyle = 'rgba(0,0,0,0.25)';
+                trackCtx.beginPath();
+                trackCtx.arc(t.x + 5, t.y + 5, 22, 0, Math.PI * 2);
+                trackCtx.fill();
+
+                trackCtx.fillStyle = '#065f46';
+                trackCtx.beginPath();
+                trackCtx.arc(t.x, t.y, 22, 0, Math.PI * 2);
+                trackCtx.fill();
+
+                trackCtx.fillStyle = '#059669';
+                trackCtx.beginPath();
+                trackCtx.arc(t.x - 4, t.y - 4, 14, 0, Math.PI * 2);
+                trackCtx.fill();
+            });
+        }
+
+        /**
+         * Verifica se uma coordenada (x, y) está sobre o asfalto.
+         * Usa o pixel do canvas da pista pré-renderizada para detecção instantânea!
+         */
+        const trackImageData = () => trackCtx.getImageData(0, 0, VIRTUAL_W, VIRTUAL_H).data;
+        let cachedPixels = null;
+
+        function isOnAsphalt(x, y) {
+            const ix = Math.floor(x);
+            const iy = Math.floor(y);
+            if (ix < 0 || ix >= VIRTUAL_W || iy < 0 || iy >= VIRTUAL_H) return false;
+            if (!cachedPixels) cachedPixels = trackImageData();
+
+            const idx = (iy * VIRTUAL_W + ix) * 4;
+            const r = cachedPixels[idx];
+            const g = cachedPixels[idx + 1];
+            const b = cachedPixels[idx + 2];
+
+            // Cor da grama (#15803d / #166534) tem verde muito dominante; o guard-rail (#94a3b8) também bloqueia
+            const isGrass = (g > r + 35 && g > b + 20);
+            const isGuardRail = (r === 148 && g === 163 && b === 184);
+            return !isGrass && !isGuardRail;
+        }
+
+        /**
+         * Calcula a normal da borda da pista caso o carro tente sair, empurrando-o de volta
+         */
+        function enforceTrackBoundaries(car) {
+            const checkRadius = 14; // Raio de colisão do carro com a mureta
+            const samples = 12;
+            let pushX = 0;
+            let pushY = 0;
+            let hitWall = false;
+
+            for (let i = 0; i < samples; i++) {
+                const ang = (i / samples) * Math.PI * 2;
+                const sx = car.x + Math.cos(ang) * checkRadius;
+                const sy = car.y + Math.sin(ang) * checkRadius;
+
+                if (!isOnAsphalt(sx, sy)) {
+                    hitWall = true;
+                    pushX -= Math.cos(ang);
+                    pushY -= Math.sin(ang);
+                }
+            }
+
+            if (hitWall) {
+                const len = Math.hypot(pushX, pushY);
+                if (len > 0) {
+                    const nx = pushX / len;
+                    const ny = pushY / len;
+
+                    // Empurra o carro de volta para dentro da pista
+                    car.x += nx * 3.5;
+                    car.y += ny * 3.5;
+
+                    // Faz o carro deslizar na mureta sem atravessar e reduz levemente a velocidade
+                    const dot = car.vx * nx + car.vy * ny;
+                    if (dot < 0) {
+                        car.vx -= 1.35 * dot * nx;
+                        car.vy -= 1.35 * dot * ny;
+                        car.speed *= 0.88;
+                    }
+                }
+            }
+        }
+
+        /**
+         * ============================================================================
+         * CLASSE DO CARRO E FÍSICA ARCADE TOP-DOWN
+         * ============================================================================
+         */
+        class Car {
+            constructor(id, name, color, index, isBot = false) {
+                this.id = id;
+                this.name = name;
+                this.color = color;
+                this.index = index;
+                this.isBot = isBot;
+                this.resetToGrid(index);
+            }
+
+            resetToGrid(index) {
+                // Posiciona os carros em fila dupla antes da linha de largada (x = 600, y = 630)
+                const row = Math.floor(index / 2);
+                const col = index % 2;
+                this.x = 555 - row * 45;
+                this.y = 608 + col * 44;
+                this.angle = 0; // Apontando para a direita (0 radianos)
+                this.speed = 0;
+                this.vx = 0;
+                this.vy = 0;
+
+                // Progresso da corrida
+                this.lap = 1;
+                this.checkpoint = 0; // 0 = largada, 1 = metade da pista (topo)
+                this.finished = false;
+                this.finishTime = 0;
+                this.progressScore = 0;
+                this.inputs = { up: false, down: false, left: false, right: false };
+            }
+
+            update(dt) {
+                if (gameState !== 'RACING') return;
+
+                // Se for Bot, calcula direção automaticamente
+                if (this.isBot || this.finished) {
+                    this.updateBotAI();
+                }
+
+                const accel = 420;
+                const brake = 480;
+                const maxSpeed = 360;
+                const turnSpeed = 3.4;
+
+                // Aceleração e Frenagem
+                if (this.inputs.up) {
+                    this.speed += accel * dt;
+                } else if (this.inputs.down) {
+                    this.speed -= brake * dt;
+                } else {
+                    // Atrito natural
+                    this.speed *= Math.pow(0.25, dt);
+                }
+
+                if (this.speed > maxSpeed) {
+                    this.speed += (maxSpeed - this.speed) * 6 * dt;
+                }
+                if (this.speed < -140) this.speed = -140;
+
+                // Esterçamento (só vira se o carro estiver em movimento)
+                if (Math.abs(this.speed) > 8) {
+                    const dir = this.speed >= 0 ? 1 : -1;
+                    const turnFactor = Math.min(1, Math.abs(this.speed) / 120);
+                    if (this.inputs.left) this.angle -= turnSpeed * turnFactor * dir * dt;
+                    if (this.inputs.right) this.angle += turnSpeed * turnFactor * dir * dt;
+                }
+
+                // Física de aderência / Drift suave
+                const targetVx = Math.cos(this.angle) * this.speed;
+                const targetVy = Math.sin(this.angle) * this.speed;
+                const grip = 7.5;
+
+                this.vx += (targetVx - this.vx) * Math.min(1, grip * dt);
+                this.vy += (targetVy - this.vy) * Math.min(1, grip * dt);
+
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                // Impede o carro de sair dos limites da pista (colisão com guard-rails)
+                enforceTrackBoundaries(this);
+
+                // Gera marcas de pneu se estiver derrapando forte
+                const driftAmount = Math.hypot(targetVx - this.vx, targetVy - this.vy);
+                if (driftAmount > 75 && Math.random() < 0.6) {
+                    skidMarks.push({ x: this.x, y: this.y, alpha: 0.45 });
+                    if (skidMarks.length > 350) skidMarks.shift();
+                }
+
+                this.checkCheckpoints();
+            }
+
+            updateBotAI() {
+                // Bot segue os waypoints da pista
+                if (this.botTargetIdx === undefined) this.botTargetIdx = 1;
+                const target = TRACK_WAYPOINTS[this.botTargetIdx];
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < 85) {
+                    this.botTargetIdx = (this.botTargetIdx + 1) % TRACK_WAYPOINTS.length;
+                }
+
+                const desiredAngle = Math.atan2(dy, dx);
+                let diff = desiredAngle - this.angle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+
+                this.inputs.up = true;
+                this.inputs.down = false;
+                this.inputs.left = diff < -0.12;
+                this.inputs.right = diff > 0.12;
+            }
+
+            checkCheckpoints() {
+                if (this.finished) return;
+
+                // Checkpoint 1: Parte superior da pista (y < 260)
+                if (this.y < 260 && this.checkpoint === 0) {
+                    this.checkpoint = 1;
+                }
+
+                // Cruzou a linha de chegada (x entre 590 e 630, y > 540) vindo do checkpoint 1
+                if (this.checkpoint === 1 && this.y > 540 && this.x >= 595 && this.x <= 635) {
+                    this.checkpoint = 0;
+                    if (this.lap < TOTAL_LAPS) {
+                        this.lap++;
+                    } else {
+                        this.finished = true;
+                        this.finishTime = performance.now() - raceStartTime;
+                        checkRaceEnd();
+                    }
+                }
+
+                // Calcula pontuação contínua para definir 1º, 2º, 3º lugar em tempo real
+                let subProgress = 0;
+                if (this.checkpoint === 0) {
+                    // Indo para o topo
+                    subProgress = this.x > 600 ? (this.x - 600) / 1000 : 0.5 + (600 - this.y) / 1000;
+                } else {
+                    // Voltando para a chegada
+                    subProgress = 1.0 + (1200 - this.x) / 1200 + (this.y / 1000);
+                }
+                this.progressScore = (this.lap * 10) + (this.checkpoint * 3) + subProgress;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Nome do piloto acima do carro
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+                const textW = ctx.measureText(this.name).width + 10;
+                ctx.fillRect(-textW / 2, -32, textW, 16);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(this.name, 0, -20);
+
+                // Rotaciona para desenhar o chassi do carro
+                ctx.rotate(this.angle);
+
+                // Sombra
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.fillRect(-17, -9, 36, 22);
+
+                // Pneus
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-13, -12, 9, 4); // Traseiro esq
+                ctx.fillRect(-13, 8, 9, 4);   // Traseiro dir
+                ctx.fillRect(6, -12, 9, 4);   // Dianteiro esq
+                ctx.fillRect(6, 8, 9, 4);     // Dianteiro dir
+
+                // Carroceria principal
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.roundRect(-18, -10, 36, 20, 5);
+                ctx.fill();
+
+                // Faixa esportiva central
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.fillRect(-16, -3, 32, 6);
+
+                // Para-brisa e vidro traseiro
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.roundRect(1, -7, 8, 14, 2); // Frente
+                ctx.roundRect(-12, -6, 5, 12, 1); // Trás
+                ctx.fill();
+
+                // Faróis dianteiros
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(16, -8, 2, 4);
+                ctx.fillRect(16, 4, 2, 4);
+
+                ctx.restore();
+            }
+        }
+
+        // Colisão simples entre carros
+        function resolveCarCollisions() {
+            const list = Object.values(players);
+            const radius = 18;
+            for (let i = 0; i < list.length; i++) {
+                for (let j = i + 1; j < list.length; j++) {
+                    const a = list[i];
+                    const b = list[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 0 && dist < radius * 2) {
+                        const overlap = (radius * 2 - dist) / 2;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        a.x -= nx * overlap;
+                        a.y -= ny * overlap;
+                        b.x += nx * overlap;
+                        b.y += ny * overlap;
+
+                        // Troca leve de momento
+                        const tempVx = a.vx;
+                        const tempVy = a.vy;
+                        a.vx = b.vx * 0.85;
+                        a.vy = b.vy * 0.85;
+                        b.vx = tempVx * 0.85;
+                        b.vy = tempVy * 0.85;
+                    }
+                }
+            }
+        }
+
+        /**
+         * ============================================================================
+         * REDE MULTIPLAYER P2P (MESMO WI-FI VIA WEBRTC / PEERJS)
+         * ============================================================================
+         */
+        function getPlayerInfo() {
+            const rawName = document.getElementById('playerNameInput').value.trim();
+            myName = rawName || `Piloto_${Math.floor(10 + Math.random() * 89)}`;
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function setStatus(msg) {
+            document.getElementById('statusMessage').textContent = msg;
+        }
+
+        // 1. CRIAR SALA (HOST)
+        function createRoom() {
+            getPlayerInfo();
+            setStatus('Criando sala na rede...');
+            isHost = true;
+            isSoloBot = false;
+            roomCode = generateRoomCode();
+
+            if (peer) peer.destroy();
+            peer = new Peer(PEER_PREFIX + roomCode);
+
+            peer.on('open', (id) => {
+                myId = id;
+                players = {};
+                players[myId] = new Car(myId, myName, myColor, 0);
+                enterLobbyUI();
+            });
+
+            peer.on('connection', (conn) => {
+                if (gameState !== 'LOBBY' || Object.keys(players).length >= 6) {
+                    conn.close();
+                    return;
+                }
+
+                conn.on('data', (data) => handleHostReceiveData(conn, data));
+                conn.on('close', () => {
+                    delete connections[conn.peer];
+                    delete players[conn.peer];
+                    broadcastLobbyState();
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                setStatus('Erro ao criar sala. Tente novamente.');
+            });
+        }
+
+        // 2. ENTRAR NA SALA (CLIENTE)
+        function joinRoom() {
+            getPlayerInfo();
+            const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+            if (code.length !== 4) {
+                setStatus('Digite o código de 4 letras da sala.');
+                return;
+            }
+
+            setStatus(`Conectando à sala ${code}...`);
+            isHost = false;
+            isSoloBot = false;
+            roomCode = code;
+
+            if (peer) peer.destroy();
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myId = id;
+                hostConn = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+
+                hostConn.on('open', () => {
+                    // Envia dados do jogador ao Host
+                    hostConn.send({
+                        type: 'JOIN',
+                        name: myName,
+                        color: myColor
+                    });
+                    enterLobbyUI();
+                });
+
+                hostConn.on('data', (data) => handleClientReceiveData(data));
+
+                hostConn.on('close', () => {
+                    setStatus('Conexão com o líder da sala perdida.');
+                    resetToMenu();
+                });
+            });
+
+            peer.on('error', () => {
+                setStatus('Sala não encontrada. Verifique o código e o Wi-Fi.');
+            });
+        }
+
+        // 3. MODO SOLO CONTRA BOT
+        function startSoloBot() {
+            getPlayerInfo();
+            isHost = true;
+            isSoloBot = true;
+            roomCode = 'SOLO';
+            myId = 'player1';
+            players = {};
+            players[myId] = new Car(myId, myName, myColor, 0, false);
+            players['bot1'] = new Car('bot1', 'Bot Rubinho', '#f59e0b', 1, true);
+            players['bot2'] = new Car('bot2', 'Bot Massa', '#3b82f6', 2, true);
+            hostStartRace();
+        }
+
+        // Recebimento de mensagens no HOST
+        function handleHostReceiveData(conn, data) {
+            if (data.type === 'JOIN') {
+                connections[conn.peer] = conn;
+                const idx = Object.keys(players).length;
+                players[conn.peer] = new Car(conn.peer, data.name, data.color, idx);
+                broadcastLobbyState();
+            } else if (data.type === 'INPUT') {
+                if (players[conn.peer]) {
+                    players[conn.peer].inputs = data.inputs;
+                }
+            }
+        }
+
+        // Recebimento de mensagens no CLIENTE
+        function handleClientReceiveData(data) {
+            if (data.type === 'LOBBY_UPDATE') {
+                syncPlayersFromNetwork(data.players);
+                updateLobbyListUI();
+            } else if (data.type === 'START_COUNTDOWN') {
+                syncPlayersFromNetwork(data.players);
+                beginCountdown();
+            } else if (data.type === 'STATE_UPDATE') {
+                gameState = data.gameState;
+                syncPlayersFromNetwork(data.players);
+                if (data.bannerText !== undefined) {
+                    const banner = document.getElementById('raceBanner');
+                    const bText = document.getElementById('bannerText');
+                    if (data.bannerText) {
+                        banner.classList.remove('hidden');
+                        bText.textContent = data.bannerText;
+                    } else {
+                        banner.classList.add('hidden');
+                    }
+                }
+                if (gameState === 'FINISHED') {
+                    showPodium();
+                }
+            }
+        }
+
+        function syncPlayersFromNetwork(netPlayers) {
+            // Atualiza ou cria carros baseados no snapshot enviado pelo Host
+            const currentIds = Object.keys(netPlayers);
+            for (const id of Object.keys(players)) {
+                if (!netPlayers[id]) delete players[id];
+            }
+            for (const id of currentIds) {
+                const np = netPlayers[id];
+                if (!players[id]) {
+                    players[id] = new Car(id, np.name, np.color, np.index);
+                }
+                Object.assign(players[id], np);
+            }
+        }
+
+        function broadcastLobbyState() {
+            updateLobbyListUI();
+            const payload = { type: 'LOBBY_UPDATE', players: serializePlayers() };
+            Object.values(connections).forEach(c => c.send(payload));
+        }
+
+        function serializePlayers() {
+            const out = {};
+            for (const [id, p] of Object.entries(players)) {
+                out[id] = {
+                    id: p.id, name: p.name, color: p.color, index: p.index,
+                    x: p.x, y: p.y, angle: p.angle, speed: p.speed,
+                    lap: p.lap, finished: p.finished, finishTime: p.finishTime,
+                    progressScore: p.progressScore
+                };
+            }
+            return out;
+        }
+
+        /**
+         * ============================================================================
+         * CONTROLE DE FLUXO DA PARTIDA E UI
+         * ============================================================================
+         */
+        function enterLobbyUI() {
+            gameState = 'LOBBY';
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('lobbyOverlay').classList.remove('hidden');
+            document.getElementById('btnLeave').classList.remove('hidden');
+            document.getElementById('roomBadge').classList.remove('hidden');
+            document.getElementById('roomCodeDisplay').textContent = roomCode;
+            document.getElementById('lobbyCodeText').textContent = roomCode;
+
+            if (isHost) {
+                document.getElementById('hostControls').classList.remove('hidden');
+                document.getElementById('clientWaitMsg').classList.add('hidden');
+            } else {
+                document.getElementById('hostControls').classList.add('hidden');
+                document.getElementById('clientWaitMsg').classList.remove('hidden');
+            }
+            updateLobbyListUI();
+        }
+
+        function updateLobbyListUI() {
+            const listEl = document.getElementById('lobbyPlayerList');
+            const pList = Object.values(players);
+            document.getElementById('playerCountText').textContent = `${pList.length}/6`;
+
+            listEl.innerHTML = pList.map((p, i) => `
+                <li class="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-4 h-4 rounded-full inline-block border border-white/40" style="background:${p.color}"></span>
+                        <span class="font-semibold text-sm text-white">${p.name} ${p.id === myId ? '(Você)' : ''}</span>
+                    </div>
+                    <span class="text-xs font-racing text-slate-400">GRID #${i + 1}</span>
+                </li>
+            `).join('');
+        }
+
+        function copyRoomCode() {
+            const temp = document.createElement('input');
+            temp.value = roomCode;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+        }
+
+        function hostStartRace() {
+            if (!isHost) return;
+            skidMarks = [];
+            Object.values(players).forEach((p, idx) => {
+                p.index = idx;
+                p.resetToGrid(idx);
+            });
+
+            if (!isSoloBot) {
+                const payload = { type: 'START_COUNTDOWN', players: serializePlayers() };
+                Object.values(connections).forEach(c => c.send(payload));
+            }
+            beginCountdown();
+        }
+
+        function beginCountdown() {
+            gameState = 'COUNTDOWN';
+            skidMarks = [];
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('lobbyOverlay').classList.add('hidden');
+            document.getElementById('podiumBox').classList.add('hidden');
+            document.getElementById('hudStats').classList.remove('hidden');
+            document.getElementById('btnLeave').classList.remove('hidden');
+
+            const banner = document.getElementById('raceBanner');
+            const bText = document.getElementById('bannerText');
+            banner.classList.remove('hidden');
+
+            if (isHost) {
+                let count = 3;
+                bText.textContent = count;
+                broadcastState(String(count));
+
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        bText.textContent = count;
+                        broadcastState(String(count));
+                    } else if (count === 0) {
+                        bText.textContent = 'VAI!';
+                        gameState = 'RACING';
+                        raceStartTime = performance.now();
+                        broadcastState('VAI!');
+                    } else {
+                        clearInterval(timer);
+                        banner.classList.add('hidden');
+                        broadcastState('');
+                    }
+                }, 900);
+            }
+        }
+
+        function broadcastState(bannerText = undefined) {
+            if (!isHost || isSoloBot) return;
+            const payload = {
+                type: 'STATE_UPDATE',
+                gameState,
+                players: serializePlayers(),
+                bannerText
+            };
+            Object.values(connections).forEach(c => c.send(payload));
+        }
+
+        function checkRaceEnd() {
+            const allList = Object.values(players);
+            const allFinished = allList.every(p => p.finished);
+            if (allFinished && gameState === 'RACING') {
+                gameState = 'FINISHED';
+                broadcastState('FIM!');
+                showPodium();
+            }
+        }
+
+        function showPodium() {
+            const banner = document.getElementById('raceBanner');
+            const bText = document.getElementById('bannerText');
+            const podiumBox = document.getElementById('podiumBox');
+            const podiumList = document.getElementById('podiumList');
+
+            banner.classList.remove('hidden');
+            bText.textContent = '🏁 FIM!';
+            podiumBox.classList.remove('hidden');
+
+            if (isHost) {
+                document.getElementById('btnRestartRace').classList.remove('hidden');
+            }
+
+            const sorted = Object.values(players).sort((a, b) => {
+                if (a.finished && b.finished) return a.finishTime - b.finishTime;
+                return b.progressScore - a.progressScore;
+            });
+
+            podiumList.innerHTML = sorted.map((p, i) => {
+                const sec = (p.finishTime / 1000).toFixed(2);
+                return `
+                    <li class="flex justify-between items-center bg-slate-800 px-3 py-2 rounded-lg">
+                        <span>${i + 1}º <span class="inline-block w-3 h-3 rounded-full mx-1" style="background:${p.color}"></span> ${p.name}</span>
+                        <span class="font-racing text-amber-400">${p.finished ? sec + 's' : 'Correndo'}</span>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function resetToMenu() {
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            connections = {};
+            hostConn = null;
+            players = {};
+            gameState = 'MENU';
+
+            document.getElementById('menuOverlay').classList.remove('hidden');
+            document.getElementById('lobbyOverlay').classList.add('hidden');
+            document.getElementById('raceBanner').classList.add('hidden');
+            document.getElementById('hudStats').classList.add('hidden');
+            document.getElementById('btnLeave').classList.add('hidden');
+            document.getElementById('roomBadge').classList.add('hidden');
+            setStatus('');
+        }
+
+        /**
+         * ============================================================================
+         * CONTROLES DE TECLADO E TOUCH
+         * ============================================================================
+         */
+        function syncInputs() {
+            if (players[myId]) {
+                players[myId].inputs = { ...keys };
+            }
+            // Se for cliente na rede, envia os comandos para o Host processar
+            if (!isHost && hostConn && hostConn.open) {
+                hostConn.send({ type: 'INPUT', inputs: keys });
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = true;
+            if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = true;
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = true;
+            if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = true;
+            syncInputs();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = false;
+            if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = false;
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = false;
+            if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = false;
+            syncInputs();
+        });
+
+        // Configuração dos botões Touch para Mobile
+        function bindTouchButton(btnId, keyName) {
+            const el = document.getElementById(btnId);
+            const press = (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                el.classList.add('active');
+                syncInputs();
+            };
+            const release = (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                el.classList.remove('active');
+                syncInputs();
+            };
+            el.addEventListener('touchstart', press, { passive: false });
+            el.addEventListener('touchend', release, { passive: false });
+            el.addEventListener('mousedown', press);
+            el.addEventListener('mouseup', release);
+            el.addEventListener('mouseleave', release);
+        }
+
+        bindTouchButton('touchUp', 'up');
+        bindTouchButton('touchDown', 'down');
+        bindTouchButton('touchLeft', 'left');
+        bindTouchButton('touchRight', 'right');
+
+        /**
+         * ============================================================================
+         * LOOP PRINCIPAL DE RENDERIZAÇÃO E ATUALIZAÇÃO (60 FPS)
+         * ============================================================================
+         */
+        let lastTime = performance.now();
+        let netSyncTimer = 0;
+
+        function updateHUD() {
+            const me = players[myId];
+            if (!me) return;
+
+            document.getElementById('lapDisplay').textContent = `${me.lap} / ${TOTAL_LAPS}`;
+
+            // Calcula posição no ranking
+            const sorted = Object.values(players).sort((a, b) => b.progressScore - a.progressScore);
+            const myPos = sorted.findIndex(p => p.id === myId) + 1;
+            document.getElementById('posDisplay').textContent = `${myPos}º`;
+
+            if (gameState === 'RACING') {
+                const elapsed = (performance.now() - raceStartTime) / 1000;
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toFixed(1).padStart(4, '0');
+                document.getElementById('timeDisplay').textContent = `${mins}:${secs}`;
+            }
+        }
+
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            // 1. Atualização de física (Somente o Host calcula a física oficial)
+            if (isHost && gameState === 'RACING') {
+                Object.values(players).forEach(car => car.update(dt));
+                resolveCarCollisions();
+
+                // Envia estado atualizado para os clientes na rede ~30 vezes por segundo
+                netSyncTimer += dt;
+                if (netSyncTimer >= 0.033) {
+                    netSyncTimer = 0;
+                    broadcastState();
+                }
+            }
+
+            // 2. Renderização da pista completa
+            ctx.clearRect(0, 0, VIRTUAL_W, VIRTUAL_H);
+            ctx.drawImage(trackCanvas, 0, 0);
+
+            // Marcas de derrapagem
+            skidMarks.forEach(m => {
+                ctx.fillStyle = `rgba(15, 23, 42, ${m.alpha})`;
+                ctx.fillRect(m.x - 3, m.y - 3, 6, 6);
+            });
+
+            // Desenha todos os carros
+            Object.values(players).forEach(car => car.draw(ctx));
+
+            // Atualiza HUD
+            if (gameState === 'RACING' || gameState === 'COUNTDOWN') {
+                updateHUD();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Inicializa o jogo ao carregar a janela
+        window.onload = () => {
+            buildTrackGraphics();
+            resizeCanvas();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
