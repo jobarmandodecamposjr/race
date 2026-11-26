@@ -143,13 +143,17 @@ Developer: Reload Window<!DOCTYPE html>
                     <div>
                         <label for="trackSelect" class="block text-xs font-semibold text-slate-400 mb-1">CIRCUITO</label>
                         <select id="trackSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+                            <option value="random" selected>🎲 Pista aleatória</option>
                             <option value="interlagos">Interlagos • Brasil</option>
                             <option value="desert">Cânion • Deserto</option>
                             <option value="neon">Neon • Cidade</option>
                             <option value="snow">Alpino • Neve</option>
-                            <option value="random">🎲 Pista aleatória</option>
+                            <option value="figure8">O O • Oito Vulcânico</option>
+                            <option value="harbor">⚓ Porto • Doca</option>
+                            <option value="speedway">🏁 Oval • Superspeed</option>
+                            <option value="ruins">🗿 Serpentina • Ruínas</option>
                         </select>
-                        <p id="trackDescription" class="mt-2 text-xs text-slate-500">Curvas rápidas entre arquibancadas e área verde.</p>
+                        <p id="trackDescription" class="mt-2 text-xs text-slate-500">Sorteia uma das pistas disponíveis a cada corrida.</p>
                         <label for="lapsSelect" class="block text-xs font-semibold text-slate-400 mt-3 mb-1">QUANTIDADE DE VOLTAS</label>
                         <select id="lapsSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
                             <option value="1">1 volta</option>
@@ -364,6 +368,54 @@ Developer: Reload Window<!DOCTYPE html>
                     { x: 650, y: 320 }, { x: 540, y: 230 }, { x: 430, y: 130 }, { x: 250, y: 150 },
                     { x: 120, y: 260 }, { x: 160, y: 440 }, { x: 260, y: 560 }, { x: 330, y: 630 }
                 ]
+            },
+            figure8: {
+                name: 'Oito Vulcânico',
+                description: 'Duas voltas conectadas em um cruzamento central.',
+                theme: 'volcano',
+                palette: { grass: '#292524', grassAlt: '#44403c', rail: '#f97316', escape: '#57534e', kerb: '#dc2626', road: '#1c1917' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 830, y: 630 }, { x: 1010, y: 530 }, { x: 1030, y: 350 },
+                    { x: 900, y: 220 }, { x: 700, y: 200 }, { x: 600, y: 350 }, { x: 500, y: 200 },
+                    { x: 300, y: 220 }, { x: 170, y: 350 }, { x: 190, y: 530 }, { x: 370, y: 630 }
+                ]
+            },
+            harbor: {
+                name: 'Porto • Doca',
+                description: 'Curvas quadradas, cotovelos e chicanes entre os armazéns.',
+                theme: 'port',
+                palette: { grass: '#0c4a6e', grassAlt: '#075985', rail: '#7dd3fc', escape: '#475569', kerb: '#f97316', road: '#334155' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 920, y: 630 }, { x: 1040, y: 570 }, { x: 1040, y: 500 },
+                    { x: 860, y: 500 }, { x: 820, y: 420 }, { x: 1000, y: 350 }, { x: 1040, y: 250 },
+                    { x: 970, y: 160 }, { x: 800, y: 150 }, { x: 730, y: 240 }, { x: 650, y: 300 },
+                    { x: 560, y: 240 }, { x: 470, y: 150 }, { x: 280, y: 150 }, { x: 160, y: 240 },
+                    { x: 150, y: 500 }, { x: 270, y: 620 }
+                ]
+            },
+            speedway: {
+                name: 'Oval • Superspeed',
+                description: 'Oval largo com retas velozes e curvas amplas.',
+                theme: 'speedway',
+                palette: { grass: '#14532d', grassAlt: '#166534', rail: '#cbd5e1', escape: '#64748b', kerb: '#ef4444', road: '#374151' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 1000, y: 630 }, { x: 1090, y: 520 }, { x: 1090, y: 220 },
+                    { x: 1000, y: 120 }, { x: 200, y: 120 }, { x: 110, y: 220 }, { x: 110, y: 520 },
+                    { x: 200, y: 630 }
+                ]
+            },
+            ruins: {
+                name: 'Serpentina • Ruínas',
+                description: 'Uma sequência de curvas em S por um vale de ruínas antigas.',
+                theme: 'ruins',
+                palette: { grass: '#365314', grassAlt: '#3f6212', rail: '#a8a29e', escape: '#78716c', kerb: '#84cc16', road: '#292524' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 950, y: 630 }, { x: 1080, y: 540 }, { x: 980, y: 450 },
+                    { x: 1080, y: 360 }, { x: 980, y: 270 }, { x: 1080, y: 180 }, { x: 930, y: 120 },
+                    { x: 760, y: 150 }, { x: 670, y: 250 }, { x: 550, y: 160 }, { x: 430, y: 250 },
+                    { x: 330, y: 140 }, { x: 200, y: 160 }, { x: 120, y: 280 }, { x: 210, y: 370 },
+                    { x: 120, y: 470 }, { x: 230, y: 570 }, { x: 300, y: 630 }
+                ]
             }
         };
         let currentTrackId = 'interlagos';
@@ -485,7 +537,7 @@ Developer: Reload Window<!DOCTYPE html>
         function updateTrackDescription() {
             const selection = document.getElementById('trackSelect').value;
             document.getElementById('trackDescription').textContent = selection === 'random'
-                ? 'Sorteia um dos quatro circuitos a cada corrida.'
+                ? `Sorteia uma das ${Object.keys(TRACKS).length} pistas disponíveis a cada corrida.`
                 : TRACKS[selection].description;
         }
 
@@ -648,6 +700,41 @@ Developer: Reload Window<!DOCTYPE html>
                     trackCtx.lineTo(x + 13, y - 10);
                     trackCtx.closePath();
                     trackCtx.fill();
+                });
+            } else if (currentTrack.theme === 'volcano') {
+                [[55, 100], [1140, 100], [55, 610], [1145, 600], [430, 80], [780, 680]].forEach(([x, y], i) => {
+                    trackCtx.fillStyle = i % 2 ? '#57534e' : '#78716c';
+                    trackCtx.beginPath();
+                    trackCtx.moveTo(x - 30, y + 20);
+                    trackCtx.lineTo(x - 15, y - 25);
+                    trackCtx.lineTo(x + 5, y - 12);
+                    trackCtx.lineTo(x + 28, y + 20);
+                    trackCtx.closePath();
+                    trackCtx.fill();
+                    trackCtx.fillStyle = '#fb923c';
+                    trackCtx.fillRect(x - 3, y + 5, 6, 12);
+                });
+            } else if (currentTrack.theme === 'port') {
+                [[25, 100, 70, 42], [1100, 75, 75, 48], [28, 580, 76, 44], [1080, 620, 85, 40]].forEach(([x, y, w, h], i) => {
+                    trackCtx.fillStyle = i % 2 ? '#b45309' : '#c2410c';
+                    trackCtx.fillRect(x, y, w, h);
+                    trackCtx.strokeStyle = '#fed7aa';
+                    trackCtx.lineWidth = 2;
+                    for (let line = x + 12; line < x + w; line += 16) {
+                        trackCtx.beginPath();
+                        trackCtx.moveTo(line, y + 4);
+                        trackCtx.lineTo(line, y + h - 4);
+                        trackCtx.stroke();
+                    }
+                });
+            } else if (currentTrack.theme === 'ruins') {
+                [[55, 100], [1135, 95], [55, 610], [1135, 605]].forEach(([x, y], i) => {
+                    trackCtx.fillStyle = i % 2 ? '#78716c' : '#a8a29e';
+                    trackCtx.fillRect(x - 17, y - 24, 34, 48);
+                    trackCtx.fillRect(x - 23, y - 29, 46, 9);
+                    trackCtx.fillStyle = '#44403c';
+                    trackCtx.fillRect(x - 5, y - 10, 10, 25);
+                    trackCtx.fillRect(x - 23, y + 19, 46, 7);
                 });
             } else {
                 const trees = [
