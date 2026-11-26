@@ -150,6 +150,13 @@ Developer: Reload Window<!DOCTYPE html>
                             <option value="random">🎲 Pista aleatória</option>
                         </select>
                         <p id="trackDescription" class="mt-2 text-xs text-slate-500">Curvas rápidas entre arquibancadas e área verde.</p>
+                        <label for="lapsSelect" class="block text-xs font-semibold text-slate-400 mt-3 mb-1">QUANTIDADE DE VOLTAS</label>
+                        <select id="lapsSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+                            <option value="1">1 volta</option>
+                            <option value="3" selected>3 voltas</option>
+                            <option value="5">5 voltas</option>
+                            <option value="10">10 voltas</option>
+                        </select>
                     </div>
                 </section>
 
@@ -293,7 +300,8 @@ Developer: Reload Window<!DOCTYPE html>
          */
         const VIRTUAL_W = 1200;
         const VIRTUAL_H = 750;
-        const TOTAL_LAPS = 3;
+        const LAP_OPTIONS = [1, 3, 5, 10];
+        let TOTAL_LAPS = 3;
         const PEER_PREFIX = "turbolan-v2-"; // Prefixo atualizado
 
         // Configuração ICE/STUN para permitir descoberta rápida de IPs na mesma rede Wi-Fi e internet
@@ -1260,6 +1268,7 @@ Developer: Reload Window<!DOCTYPE html>
                 updateLobbyListUI();
             } else if (data.type === 'START_COUNTDOWN') {
                 if (data.trackId && TRACKS[data.trackId]) selectTrack(data.trackId);
+                if (LAP_OPTIONS.includes(data.totalLaps)) TOTAL_LAPS = data.totalLaps;
                 syncPlayersFromNetwork(data.players);
                 beginCountdown();
             } else if (data.type === 'STATE_UPDATE') {
@@ -1368,6 +1377,8 @@ Developer: Reload Window<!DOCTYPE html>
         function hostStartRace() {
             if (!isHost) return;
             chooseRaceTrack();
+            const selectedLaps = Number(document.getElementById('lapsSelect').value);
+            TOTAL_LAPS = LAP_OPTIONS.includes(selectedLaps) ? selectedLaps : 3;
             skidMarks = [];
             Object.values(players).forEach((p, idx) => {
                 p.index = idx;
@@ -1375,7 +1386,12 @@ Developer: Reload Window<!DOCTYPE html>
             });
 
             if (!isSoloBot) {
-                const payload = { type: 'START_COUNTDOWN', trackId: currentTrackId, players: serializePlayers() };
+                const payload = {
+                    type: 'START_COUNTDOWN',
+                    trackId: currentTrackId,
+                    totalLaps: TOTAL_LAPS,
+                    players: serializePlayers()
+                };
                 Object.values(connections).forEach(c => c.send(payload));
             }
             beginCountdown();
