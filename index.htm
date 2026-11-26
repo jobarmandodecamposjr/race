@@ -56,6 +56,14 @@ Developer: Reload Window<!DOCTYPE html>
             border-color: #38bdf8;
             transform: scale(0.92);
         }
+        .countdown-pop {
+            animation: countdown-pop 0.8s ease-out;
+        }
+        @keyframes countdown-pop {
+            0% { opacity: 0.35; transform: scale(1.7); }
+            65% { opacity: 1; transform: scale(0.92); }
+            100% { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-between p-2 sm:p-4 bg-slate-950">
@@ -195,7 +203,7 @@ Developer: Reload Window<!DOCTYPE html>
 
         <!-- OVERLAY: CONTAGEM REGRESSIVA / FIM DE CORRIDA -->
         <div id="raceBanner" class="hidden pointer-events-none absolute inset-0 flex flex-col items-center justify-center z-10">
-            <div id="bannerText" class="font-racing text-6xl sm:text-8xl font-black text-amber-400 drop-shadow-[0_5px_15px_rgba(0,0,0,0.9)]">
+            <div id="bannerText" aria-live="assertive" aria-atomic="true" class="font-racing text-6xl sm:text-8xl font-black text-amber-400 drop-shadow-[0_5px_15px_rgba(0,0,0,0.9)]">
                 3
             </div>
             <div id="podiumBox" class="hidden pointer-events-auto mt-4 bg-slate-900/95 border border-slate-700 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
@@ -1042,12 +1050,13 @@ Developer: Reload Window<!DOCTYPE html>
                 syncPlayersFromNetwork(data.players);
                 if (data.bannerText !== undefined) {
                     const banner = document.getElementById('raceBanner');
-                    const bText = document.getElementById('bannerText');
                     if (data.bannerText) {
                         banner.classList.remove('hidden');
-                        bText.textContent = data.bannerText;
+                        setCountdownBanner(data.bannerText, data.bannerText === 'VAI!');
                     } else {
                         banner.classList.add('hidden');
+                        document.getElementById('bannerText').classList.remove('countdown-pop', 'text-emerald-400');
+                        document.getElementById('bannerText').classList.add('text-amber-400');
                     }
                 }
                 if (gameState === 'FINISHED') {
@@ -1154,6 +1163,14 @@ Developer: Reload Window<!DOCTYPE html>
             beginCountdown();
         }
 
+        function setCountdownBanner(text, isGo = false) {
+            const bText = document.getElementById('bannerText');
+            bText.textContent = text;
+            bText.classList.remove('countdown-pop', 'text-amber-400', 'text-emerald-400');
+            bText.classList.add('countdown-pop', isGo ? 'text-emerald-400' : 'text-amber-400');
+            void bText.offsetWidth;
+        }
+
         function beginCountdown() {
             gameState = 'COUNTDOWN';
             skidMarks = [];
@@ -1169,25 +1186,28 @@ Developer: Reload Window<!DOCTYPE html>
 
             if (isHost) {
                 let count = 3;
-                bText.textContent = count;
+                setCountdownBanner(count);
                 broadcastState(String(count));
 
                 const timer = setInterval(() => {
-                    count--;
-                    if (count > 0) {
-                        bText.textContent = count;
+                    if (count > 1) {
+                        count--;
+                        setCountdownBanner(count);
                         broadcastState(String(count));
-                    } else if (count === 0) {
-                        bText.textContent = 'VAI!';
+                    } else if (count === 1) {
+                        count = 0;
+                        setCountdownBanner('VAI!', true);
                         gameState = 'RACING';
                         raceStartTime = performance.now();
                         broadcastState('VAI!');
                     } else {
                         clearInterval(timer);
                         banner.classList.add('hidden');
+                        bText.classList.remove('countdown-pop', 'text-emerald-400');
+                        bText.classList.add('text-amber-400');
                         broadcastState('');
                     }
-                }, 900);
+                }, 1000);
             }
         }
 
@@ -1220,6 +1240,8 @@ Developer: Reload Window<!DOCTYPE html>
 
             banner.classList.remove('hidden');
             bText.textContent = '🏁 FIM!';
+            bText.classList.remove('countdown-pop', 'text-emerald-400');
+            bText.classList.add('text-amber-400');
             podiumBox.classList.remove('hidden');
 
             if (isHost) {
