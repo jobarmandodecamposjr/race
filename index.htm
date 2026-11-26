@@ -107,7 +107,7 @@ Developer: Reload Window<!DOCTYPE html>
 
         <!-- OVERLAY: MENU INICIAL E LOBBY WI-FI -->
         <div id="menuOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 rounded-xl z-20">
-            <div class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
+            <div class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl max-w-md w-full max-h-full overflow-y-auto shadow-2xl space-y-6">
                 <div class="text-center space-y-1">
                     <h2 class="font-racing text-2xl sm:text-3xl font-black text-white">CORRIDA NA REDE</h2>
                     <p class="text-xs sm:text-sm text-slate-400">Conecte dispositivos no mesmo Wi-Fi usando o código da sala</p>
@@ -151,6 +151,17 @@ Developer: Reload Window<!DOCTYPE html>
                         <div class="flex-grow border-t border-slate-800"></div>
                         <span class="flex-shrink mx-3 text-xs text-slate-500">OU</span>
                         <div class="flex-grow border-t border-slate-800"></div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-xs text-slate-300">
+                            <input id="includeLocalBot" type="checkbox" class="accent-amber-400">
+                            Adicionar um computador à corrida
+                        </label>
+                        <button onclick="startLocalGame()" class="btn-racing w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/40 text-white font-racing text-sm font-bold rounded-xl">
+                            👥 Jogar Local (2 jogadores)
+                        </button>
+                        <p class="text-[11px] text-slate-500 text-center">Jogador 1: W A S D · Jogador 2: setas</p>
                     </div>
 
                     <button onclick="startSoloBot()" class="btn-racing w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-racing text-sm font-bold rounded-xl">
@@ -220,7 +231,7 @@ Developer: Reload Window<!DOCTYPE html>
     <footer class="w-full max-w-6xl flex items-center justify-between px-2 pb-1 z-10">
         <!-- Dica Desktop -->
         <div class="hidden md:flex items-center gap-4 text-xs text-slate-400 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800">
-            <span>🎮 <strong class="text-slate-200">WASD</strong> ou <strong class="text-slate-200">Setas</strong> para dirigir</span>
+            <span id="controlsHint">🎮 <strong class="text-slate-200">WASD</strong> ou <strong class="text-slate-200">Setas</strong> para dirigir</span>
             <span>•</span>
             <span>🛞 Faça curvas suaves para não derrapar na grama!</span>
         </div>
@@ -292,6 +303,7 @@ Developer: Reload Window<!DOCTYPE html>
         let gameState = 'MENU'; // MENU, LOBBY, COUNTDOWN, RACING, FINISHED
         let isHost = false;
         let isSoloBot = false;
+        let isLocalGame = false;
         let peer = null;
         let roomCode = '';
         let connections = {}; // Mapa de conexões (Host guarda todos; Cliente guarda só o Host)
@@ -311,6 +323,7 @@ Developer: Reload Window<!DOCTYPE html>
 
         // Controles
         const keys = { up: false, down: false, left: false, right: false };
+        const player2Keys = { up: false, down: false, left: false, right: false };
 
         // Canvas offscreen para pré-renderizar a pista (melhora muito o FPS)
         const trackCanvas = document.createElement('canvas');
@@ -581,6 +594,7 @@ Developer: Reload Window<!DOCTYPE html>
                 this.finishTime = 0;
                 this.finishPosition = 0;
                 this.progressScore = 0;
+                this.botTargetIdx = undefined;
                 this.inputs = { up: false, down: false, left: false, right: false };
             }
 
@@ -1012,12 +1026,34 @@ Developer: Reload Window<!DOCTYPE html>
             getPlayerInfo();
             isHost = true;
             isSoloBot = true;
+            isLocalGame = false;
+            document.getElementById('controlsHint').innerHTML = '🎮 <strong class="text-slate-200">WASD</strong> ou <strong class="text-slate-200">Setas</strong> para dirigir';
             roomCode = 'SOLO';
             myId = 'player1';
             players = {};
             players[myId] = new Car(myId, myName, myColor, 0, false);
             players['bot1'] = new Car('bot1', 'Bot Rubinho', '#f59e0b', 1, true);
             players['bot2'] = new Car('bot2', 'Bot Massa', '#3b82f6', 2, true);
+            hostStartRace();
+        }
+
+        function startLocalGame() {
+            getPlayerInfo();
+            isHost = true;
+            isSoloBot = true;
+            isLocalGame = true;
+            roomCode = 'LOCAL';
+            myId = 'player1';
+            Object.assign(keys, { up: false, down: false, left: false, right: false });
+            Object.assign(player2Keys, { up: false, down: false, left: false, right: false });
+            players = {
+                player1: new Car('player1', myName, myColor, 0),
+                player2: new Car('player2', 'Jogador 2', '#3b82f6', 1)
+            };
+            if (document.getElementById('includeLocalBot').checked) {
+                players.bot1 = new Car('bot1', 'Computador', '#f59e0b', 2, true);
+            }
+            document.getElementById('controlsHint').textContent = '🎮 Jogador 1: WASD • Jogador 2: Setas';
             hostStartRace();
         }
 
@@ -1273,6 +1309,9 @@ Developer: Reload Window<!DOCTYPE html>
             hostConn = null;
             players = {};
             gameState = 'MENU';
+            isLocalGame = false;
+            Object.assign(keys, { up: false, down: false, left: false, right: false });
+            Object.assign(player2Keys, { up: false, down: false, left: false, right: false });
 
             document.getElementById('menuOverlay').classList.remove('hidden');
             document.getElementById('lobbyOverlay').classList.add('hidden');
@@ -1280,6 +1319,7 @@ Developer: Reload Window<!DOCTYPE html>
             document.getElementById('hudStats').classList.add('hidden');
             document.getElementById('btnLeave').classList.add('hidden');
             document.getElementById('roomBadge').classList.add('hidden');
+            document.getElementById('controlsHint').innerHTML = '🎮 <strong class="text-slate-200">WASD</strong> ou <strong class="text-slate-200">Setas</strong> para dirigir';
             setStatus('');
         }
 
@@ -1289,6 +1329,11 @@ Developer: Reload Window<!DOCTYPE html>
          * ============================================================================
          */
         function syncInputs() {
+            if (isLocalGame) {
+                if (players.player1) players.player1.inputs = { ...keys };
+                if (players.player2) players.player2.inputs = { ...player2Keys };
+                return;
+            }
             if (players[myId]) {
                 players[myId].inputs = { ...keys };
             }
@@ -1298,7 +1343,27 @@ Developer: Reload Window<!DOCTYPE html>
             }
         }
 
+        const LOCAL_KEY_BINDINGS = {
+            KeyW: { player: 'player1', input: 'up' },
+            KeyS: { player: 'player1', input: 'down' },
+            KeyA: { player: 'player1', input: 'left' },
+            KeyD: { player: 'player1', input: 'right' },
+            ArrowUp: { player: 'player2', input: 'up' },
+            ArrowDown: { player: 'player2', input: 'down' },
+            ArrowLeft: { player: 'player2', input: 'left' },
+            ArrowRight: { player: 'player2', input: 'right' }
+        };
+
         window.addEventListener('keydown', (e) => {
+            if (isLocalGame) {
+                const binding = LOCAL_KEY_BINDINGS[e.code];
+                if (!binding) return;
+                e.preventDefault();
+                const playerKeys = binding.player === 'player1' ? keys : player2Keys;
+                playerKeys[binding.input] = true;
+                syncInputs();
+                return;
+            }
             if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = true;
             if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = true;
             if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = true;
@@ -1307,6 +1372,15 @@ Developer: Reload Window<!DOCTYPE html>
         });
 
         window.addEventListener('keyup', (e) => {
+            if (isLocalGame) {
+                const binding = LOCAL_KEY_BINDINGS[e.code];
+                if (!binding) return;
+                e.preventDefault();
+                const playerKeys = binding.player === 'player1' ? keys : player2Keys;
+                playerKeys[binding.input] = false;
+                syncInputs();
+                return;
+            }
             if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = false;
             if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = false;
             if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = false;
