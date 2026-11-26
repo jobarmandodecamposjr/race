@@ -107,67 +107,100 @@ Developer: Reload Window<!DOCTYPE html>
 
         <!-- OVERLAY: MENU INICIAL E LOBBY WI-FI -->
         <div id="menuOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 rounded-xl z-20">
-            <div class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl max-w-md w-full max-h-full overflow-y-auto shadow-2xl space-y-6">
+            <div class="bg-slate-900 border border-slate-700 p-5 sm:p-7 rounded-2xl max-w-3xl w-full max-h-full overflow-y-auto shadow-2xl space-y-5">
                 <div class="text-center space-y-1">
-                    <h2 class="font-racing text-2xl sm:text-3xl font-black text-white">CORRIDA NA REDE</h2>
-                    <p class="text-xs sm:text-sm text-slate-400">Conecte dispositivos no mesmo Wi-Fi usando o código da sala</p>
+                    <h2 class="font-racing text-2xl sm:text-3xl font-black text-white">TURBO LAN</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Escolha como jogar, personalize os pilotos e selecione o circuito</p>
                 </div>
 
-                <!-- Configuração do Jogador -->
-                <div class="space-y-3 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">SEU NOME DE PILOTO</label>
-                        <input type="text" id="playerNameInput" maxlength="12" placeholder="Ex: Senna" 
-                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">COR DO CARRO</label>
-                        <div class="flex gap-2 justify-between" id="colorPicker">
-                            <button type="button" data-color="#ef4444" class="color-opt w-8 h-8 rounded-full bg-red-500 ring-2 ring-white scale-110"></button>
-                            <button type="button" data-color="#3b82f6" class="color-opt w-8 h-8 rounded-full bg-blue-500 opacity-70 hover:opacity-100"></button>
-                            <button type="button" data-color="#10b981" class="color-opt w-8 h-8 rounded-full bg-emerald-500 opacity-70 hover:opacity-100"></button>
-                            <button type="button" data-color="#f59e0b" class="color-opt w-8 h-8 rounded-full bg-amber-500 opacity-70 hover:opacity-100"></button>
-                            <button type="button" data-color="#a855f7" class="color-opt w-8 h-8 rounded-full bg-purple-500 opacity-70 hover:opacity-100"></button>
-                            <button type="button" data-color="#ec4899" class="color-opt w-8 h-8 rounded-full bg-pink-500 opacity-70 hover:opacity-100"></button>
+                <div class="grid grid-cols-3 gap-2" role="tablist" aria-label="Modo de jogo">
+                    <button type="button" data-mode="local" class="mode-tab btn-racing py-2.5 rounded-xl border border-indigo-400 bg-indigo-600 text-white font-racing text-xs sm:text-sm font-bold" aria-selected="true">👥 Local</button>
+                    <button type="button" data-mode="network" class="mode-tab btn-racing py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-racing text-xs sm:text-sm font-bold" aria-selected="false">📡 Rede Wi-Fi</button>
+                    <button type="button" data-mode="solo" class="mode-tab btn-racing py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-racing text-xs sm:text-sm font-bold" aria-selected="false">🤖 Treino</button>
+                </div>
+
+                <section class="grid md:grid-cols-2 gap-3">
+                    <div class="space-y-3 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                        <h3 class="font-racing text-xs font-bold text-sky-300">PILOTO 1</h3>
+                        <div>
+                            <label for="playerNameInput" class="block text-xs font-semibold text-slate-400 mb-1">NOME</label>
+                            <input type="text" id="playerNameInput" maxlength="12" placeholder="Ex: Senna"
+                                   class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-2">COR DO CARRO</label>
+                            <div class="flex gap-2 justify-between" id="colorPicker" aria-label="Cor do carro do piloto 1">
+                                <button type="button" aria-label="Vermelho" data-color="#ef4444" class="color-opt w-8 h-8 rounded-full bg-red-500 ring-2 ring-white scale-110"></button>
+                                <button type="button" aria-label="Azul" data-color="#3b82f6" class="color-opt w-8 h-8 rounded-full bg-blue-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Verde" data-color="#10b981" class="color-opt w-8 h-8 rounded-full bg-emerald-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Amarelo" data-color="#f59e0b" class="color-opt w-8 h-8 rounded-full bg-amber-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Roxo" data-color="#a855f7" class="color-opt w-8 h-8 rounded-full bg-purple-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Rosa" data-color="#ec4899" class="color-opt w-8 h-8 rounded-full bg-pink-500 opacity-70 hover:opacity-100"></button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Botões de Ação -->
-                <div class="space-y-3">
-                    <button onclick="createRoom()" class="btn-racing w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-racing font-bold rounded-xl shadow-lg shadow-emerald-900/40">
-                        📡 Criar Sala (Host Wi-Fi)
+                    <div>
+                        <label for="trackSelect" class="block text-xs font-semibold text-slate-400 mb-1">CIRCUITO</label>
+                        <select id="trackSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500">
+                            <option value="interlagos">Interlagos • Brasil</option>
+                            <option value="desert">Cânion • Deserto</option>
+                            <option value="neon">Neon • Cidade</option>
+                            <option value="snow">Alpino • Neve</option>
+                            <option value="random">🎲 Pista aleatória</option>
+                        </select>
+                        <p id="trackDescription" class="mt-2 text-xs text-slate-500">Curvas rápidas entre arquibancadas e área verde.</p>
+                    </div>
+                </section>
+
+                <section id="localModePanel" class="space-y-3">
+                    <div class="grid sm:grid-cols-2 gap-3 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+                        <div class="space-y-2">
+                            <h3 class="font-racing text-xs font-bold text-indigo-300">PILOTO 2</h3>
+                            <input type="text" id="player2NameInput" maxlength="12" placeholder="Jogador 2" aria-label="Nome do piloto 2"
+                                   class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-400">
+                            <div class="flex gap-2 justify-between" id="player2ColorPicker" aria-label="Cor do carro do piloto 2">
+                                <button type="button" aria-label="Vermelho" data-color="#ef4444" class="color-opt w-7 h-7 rounded-full bg-red-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Azul" data-color="#3b82f6" class="color-opt w-7 h-7 rounded-full bg-blue-500 ring-2 ring-white scale-110"></button>
+                                <button type="button" aria-label="Verde" data-color="#10b981" class="color-opt w-7 h-7 rounded-full bg-emerald-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Amarelo" data-color="#f59e0b" class="color-opt w-7 h-7 rounded-full bg-amber-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Roxo" data-color="#a855f7" class="color-opt w-7 h-7 rounded-full bg-purple-500 opacity-70 hover:opacity-100"></button>
+                                <button type="button" aria-label="Rosa" data-color="#ec4899" class="color-opt w-7 h-7 rounded-full bg-pink-500 opacity-70 hover:opacity-100"></button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col justify-center gap-3">
+                            <label class="flex items-center gap-2 text-xs text-slate-300">
+                                <input id="includeLocalBot" type="checkbox" class="accent-amber-400">
+                                Adicionar um computador à corrida
+                            </label>
+                            <p class="text-[11px] text-slate-500">Piloto 1: W A S D · Piloto 2: setas</p>
+                        </div>
+                    </div>
+                    <button onclick="startLocalGame()" class="btn-racing w-full py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/40 text-white font-racing text-sm font-bold rounded-xl">
+                        🏁 Iniciar corrida local
                     </button>
+                </section>
 
+                <section id="networkModePanel" class="hidden space-y-3">
+                    <p class="text-sm text-slate-400">Conecte dispositivos no mesmo Wi-Fi usando o código da sala.</p>
+                    <button onclick="createRoom()" class="btn-racing w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-racing font-bold rounded-xl shadow-lg shadow-emerald-900/40">
+                        📡 Criar sala (host)
+                    </button>
                     <div class="flex gap-2">
-                        <input type="text" id="joinCodeInput" maxlength="4" placeholder="CÓDIGO" 
+                        <input type="text" id="joinCodeInput" maxlength="4" placeholder="CÓDIGO"
                                class="w-1/3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center font-racing font-bold uppercase tracking-widest text-amber-400 focus:outline-none focus:border-amber-500">
                         <button onclick="joinRoom()" class="btn-racing flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-racing font-bold rounded-xl shadow-lg shadow-sky-900/40">
-                            🔗 Entrar na Sala
+                            🔗 Entrar na sala
                         </button>
                     </div>
+                </section>
 
-                    <div class="relative flex py-1 items-center">
-                        <div class="flex-grow border-t border-slate-800"></div>
-                        <span class="flex-shrink mx-3 text-xs text-slate-500">OU</span>
-                        <div class="flex-grow border-t border-slate-800"></div>
-                    </div>
-
-                    <div class="space-y-2">
-                        <label class="flex items-center gap-2 text-xs text-slate-300">
-                            <input id="includeLocalBot" type="checkbox" class="accent-amber-400">
-                            Adicionar um computador à corrida
-                        </label>
-                        <button onclick="startLocalGame()" class="btn-racing w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/40 text-white font-racing text-sm font-bold rounded-xl">
-                            👥 Jogar Local (2 jogadores)
-                        </button>
-                        <p class="text-[11px] text-slate-500 text-center">Jogador 1: W A S D · Jogador 2: setas</p>
-                    </div>
-
-                    <button onclick="startSoloBot()" class="btn-racing w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-racing text-sm font-bold rounded-xl">
-                        🤖 Treinar Contra Bot
+                <section id="soloModePanel" class="hidden">
+                    <p class="mb-3 text-sm text-slate-400">Pratique o traçado escolhido contra dois adversários controlados pelo computador.</p>
+                    <button onclick="startSoloBot()" class="btn-racing w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-racing text-sm font-bold rounded-xl">
+                        🚦 Iniciar treino contra bots
                     </button>
-                </div>
+                </section>
 
                 <div id="statusBox" class="hidden bg-slate-950/90 border border-amber-500/40 rounded-xl p-3 text-center">
                     <p id="statusMessage" class="text-xs text-amber-400 font-medium leading-relaxed"></p>
@@ -276,22 +309,65 @@ Developer: Reload Window<!DOCTYPE html>
             }
         };
 
-        // Pontos centrais que definem o traçado fechado da pista (Circuito estilo Interlagos/Kart)
-        const TRACK_WAYPOINTS = [
-            { x: 600, y: 630 }, // Reta principal (Largada)
-            { x: 950, y: 630 }, // Final da reta
-            { x: 1080, y: 530 }, // Curva 1
-            { x: 1060, y: 240 }, // Reta oposta direita
-            { x: 930, y: 130 }, // Curva 2
-            { x: 720, y: 140 }, // Curva 3
-            { x: 620, y: 270 }, // Miolo - S do Senna
-            { x: 480, y: 270 }, // Miolo
-            { x: 380, y: 140 }, // Curva 4
-            { x: 190, y: 150 }, // Curva 5
-            { x: 120, y: 310 }, // Reta esquerda
-            { x: 140, y: 520 }, // Curva da junção
-            { x: 270, y: 630 }  // Entrada da reta principal
-        ];
+        const TRACKS = {
+            interlagos: {
+                name: 'Interlagos • Brasil',
+                description: 'Curvas rápidas entre arquibancadas e área verde.',
+                theme: 'forest',
+                palette: { grass: '#15803d', grassAlt: '#166534', rail: '#94a3b8', escape: '#475569', kerb: '#ef4444', road: '#334155' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 950, y: 630 }, { x: 1080, y: 530 }, { x: 1060, y: 240 },
+                    { x: 930, y: 130 }, { x: 720, y: 140 }, { x: 620, y: 270 }, { x: 480, y: 270 },
+                    { x: 380, y: 140 }, { x: 190, y: 150 }, { x: 120, y: 310 }, { x: 140, y: 520 }, { x: 270, y: 630 }
+                ]
+            },
+            desert: {
+                name: 'Cânion • Deserto',
+                description: 'Curvas fechadas e curvas em S entre dunas e rochas.',
+                theme: 'desert',
+                palette: { grass: '#d6a64f', grassAlt: '#c28a3a', rail: '#f1d29a', escape: '#8b5e34', kerb: '#f97316', road: '#3f3b3a' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 930, y: 630 }, { x: 1080, y: 570 }, { x: 1080, y: 430 },
+                    { x: 1010, y: 350 }, { x: 1080, y: 240 }, { x: 1000, y: 150 }, { x: 820, y: 140 },
+                    { x: 720, y: 240 }, { x: 650, y: 320 }, { x: 560, y: 210 }, { x: 430, y: 135 },
+                    { x: 250, y: 160 }, { x: 130, y: 260 }, { x: 150, y: 470 }, { x: 270, y: 630 }
+                ]
+            },
+            neon: {
+                name: 'Neon • Cidade',
+                description: 'Um circuito urbano noturno cercado por luzes e prédios.',
+                theme: 'city',
+                palette: { grass: '#172554', grassAlt: '#1e3a8a', rail: '#67e8f9', escape: '#312e81', kerb: '#e879f9', road: '#1f2937' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 960, y: 630 }, { x: 1090, y: 560 }, { x: 1030, y: 450 },
+                    { x: 1110, y: 340 }, { x: 1030, y: 230 }, { x: 1090, y: 130 }, { x: 880, y: 135 },
+                    { x: 760, y: 230 }, { x: 650, y: 170 }, { x: 520, y: 130 }, { x: 360, y: 145 },
+                    { x: 210, y: 210 }, { x: 130, y: 350 }, { x: 190, y: 500 }, { x: 310, y: 630 }
+                ]
+            },
+            snow: {
+                name: 'Alpino • Neve',
+                description: 'Traçado sinuoso de montanha com cenário coberto de neve.',
+                theme: 'snow',
+                palette: { grass: '#dbeafe', grassAlt: '#bfdbfe', rail: '#93c5fd', escape: '#94a3b8', kerb: '#38bdf8', road: '#334155' },
+                waypoints: [
+                    { x: 600, y: 630 }, { x: 980, y: 630 }, { x: 1080, y: 540 }, { x: 1010, y: 420 },
+                    { x: 1080, y: 300 }, { x: 1030, y: 170 }, { x: 870, y: 130 }, { x: 760, y: 230 },
+                    { x: 650, y: 320 }, { x: 540, y: 230 }, { x: 430, y: 130 }, { x: 250, y: 150 },
+                    { x: 120, y: 260 }, { x: 160, y: 440 }, { x: 260, y: 560 }, { x: 330, y: 630 }
+                ]
+            }
+        };
+        let currentTrackId = 'interlagos';
+        let currentTrack = TRACKS[currentTrackId];
+        let TRACK_WAYPOINTS = currentTrack.waypoints;
+        const hexToRgb = hex => ({
+            r: parseInt(hex.slice(1, 3), 16),
+            g: parseInt(hex.slice(3, 5), 16),
+            b: parseInt(hex.slice(5, 7), 16)
+        });
+        let trackCollisionColors = [currentTrack.palette.grass, currentTrack.palette.grassAlt].map(hexToRgb);
+        let trackRailColor = hexToRgb(currentTrack.palette.rail);
         const TRACK_WIDTH = 115; // Largura do asfalto
 
         // Elementos DOM
@@ -314,6 +390,7 @@ Developer: Reload Window<!DOCTYPE html>
         let myId = 'local';
         let myName = 'Piloto';
         let myColor = '#ef4444';
+        let player2Color = '#3b82f6';
 
         // Lista de carros na corrida (id -> objeto Car)
         let players = {};
@@ -356,18 +433,77 @@ Developer: Reload Window<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        // Seleção de cor no menu
-        document.querySelectorAll('.color-opt').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.color-opt').forEach(b => {
-                    b.classList.remove('ring-2', 'ring-white', 'scale-110');
-                    b.classList.add('opacity-70');
+        function bindColorPicker(pickerId, onSelect) {
+            const picker = document.getElementById(pickerId);
+            picker.querySelectorAll('.color-opt').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    picker.querySelectorAll('.color-opt').forEach(b => {
+                        b.classList.remove('ring-2', 'ring-white', 'scale-110');
+                        b.classList.add('opacity-70');
+                    });
+                    btn.classList.add('ring-2', 'ring-white', 'scale-110');
+                    btn.classList.remove('opacity-70');
+                    onSelect(btn.dataset.color);
                 });
-                btn.classList.add('ring-2', 'ring-white', 'scale-110');
-                btn.classList.remove('opacity-70');
-                myColor = btn.dataset.color;
+            });
+        }
+
+        bindColorPicker('colorPicker', color => {
+            myColor = color;
+        });
+        bindColorPicker('player2ColorPicker', color => {
+            player2Color = color;
+        });
+
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const mode = tab.dataset.mode;
+                document.querySelectorAll('.mode-tab').forEach(button => {
+                    const selected = button === tab;
+                    button.setAttribute('aria-selected', String(selected));
+                    button.classList.toggle('bg-indigo-600', selected);
+                    button.classList.toggle('border-indigo-400', selected);
+                    button.classList.toggle('text-white', selected);
+                    button.classList.toggle('bg-slate-800', !selected);
+                    button.classList.toggle('border-slate-700', !selected);
+                    button.classList.toggle('text-slate-300', !selected);
+                });
+                document.getElementById('localModePanel').classList.toggle('hidden', mode !== 'local');
+                document.getElementById('networkModePanel').classList.toggle('hidden', mode !== 'network');
+                document.getElementById('soloModePanel').classList.toggle('hidden', mode !== 'solo');
             });
         });
+
+        function updateTrackDescription() {
+            const selection = document.getElementById('trackSelect').value;
+            document.getElementById('trackDescription').textContent = selection === 'random'
+                ? 'Sorteia um dos quatro circuitos a cada corrida.'
+                : TRACKS[selection].description;
+        }
+
+        document.getElementById('trackSelect').addEventListener('change', () => {
+            updateTrackDescription();
+            const selection = document.getElementById('trackSelect').value;
+            if (selection !== 'random') selectTrack(selection);
+        });
+
+        function selectTrack(trackId) {
+            currentTrackId = trackId;
+            currentTrack = TRACKS[trackId];
+            TRACK_WAYPOINTS = currentTrack.waypoints;
+            trackCollisionColors = [currentTrack.palette.grass, currentTrack.palette.grassAlt].map(hexToRgb);
+            trackRailColor = hexToRgb(currentTrack.palette.rail);
+            cachedPixels = null;
+            buildTrackGraphics();
+        }
+
+        function chooseRaceTrack() {
+            const selection = document.getElementById('trackSelect').value;
+            const trackId = selection === 'random'
+                ? Object.keys(TRACKS)[Math.floor(Math.random() * Object.keys(TRACKS).length)]
+                : selection;
+            selectTrack(trackId);
+        }
 
         /**
          * ============================================================================
@@ -375,15 +511,17 @@ Developer: Reload Window<!DOCTYPE html>
          * ============================================================================
          */
         function buildTrackGraphics() {
+            const palette = currentTrack.palette;
             // 1. Gramado base com textura sutil
-            trackCtx.fillStyle = '#15803d'; // Verde grama vibrante
+            trackCtx.fillStyle = palette.grass;
             trackCtx.fillRect(0, 0, VIRTUAL_W, VIRTUAL_H);
 
-            // Listras de corte de grama
-            trackCtx.fillStyle = '#166534';
+            // Textura do terreno varia com o tema do circuito.
+            trackCtx.fillStyle = palette.grassAlt;
             for (let x = 0; x < VIRTUAL_W; x += 60) {
                 trackCtx.fillRect(x, 0, 30, VIRTUAL_H);
             }
+            drawDecorations();
 
             // Função auxiliar para traçar o caminho suave da pista
             function traceCircuit(context) {
@@ -408,19 +546,19 @@ Developer: Reload Window<!DOCTYPE html>
 
             // 2. Guard-rail / Mureta externa de proteção
             traceCircuit(trackCtx);
-            trackCtx.strokeStyle = '#94a3b8';
+            trackCtx.strokeStyle = palette.rail;
             trackCtx.lineWidth = TRACK_WIDTH + 34;
             trackCtx.stroke();
 
             // 3. Área de escape / Brita interna
             traceCircuit(trackCtx);
-            trackCtx.strokeStyle = '#475569';
+            trackCtx.strokeStyle = palette.escape;
             trackCtx.lineWidth = TRACK_WIDTH + 24;
             trackCtx.stroke();
 
             // 4. Zebras (Vermelho e Branco)
             traceCircuit(trackCtx);
-            trackCtx.strokeStyle = '#ef4444';
+            trackCtx.strokeStyle = palette.kerb;
             trackCtx.lineWidth = TRACK_WIDTH + 14;
             trackCtx.stroke();
 
@@ -433,7 +571,7 @@ Developer: Reload Window<!DOCTYPE html>
 
             // 5. Asfalto principal
             traceCircuit(trackCtx);
-            trackCtx.strokeStyle = '#334155';
+            trackCtx.strokeStyle = palette.road;
             trackCtx.lineWidth = TRACK_WIDTH;
             trackCtx.stroke();
 
@@ -457,41 +595,79 @@ Developer: Reload Window<!DOCTYPE html>
                     trackCtx.fillRect(startX + col, startY + row, sqSize, sqSize);
                 }
             }
-
-            // 7. Decoração: Arquibancada e árvores simples fora da pista
-            drawDecorations();
         }
 
         function drawDecorations() {
-            // Arquibancada na reta principal
+            if (currentTrack.theme === 'city') {
+                const buildings = [
+                    [35, 95, 80, 105], [1060, 55, 90, 120], [75, 545, 105, 90],
+                    [1010, 570, 125, 80], [430, 45, 70, 55], [780, 650, 90, 40]
+                ];
+                buildings.forEach(([x, y, w, h], i) => {
+                    trackCtx.fillStyle = i % 2 ? '#0f172a' : '#1e1b4b';
+                    trackCtx.fillRect(x, y, w, h);
+                    trackCtx.fillStyle = i % 2 ? '#22d3ee' : '#f0abfc';
+                    for (let wx = x + 12; wx < x + w - 8; wx += 22) {
+                        for (let wy = y + 12; wy < y + h - 8; wy += 24) {
+                            trackCtx.fillRect(wx, wy, 7, 9);
+                        }
+                    }
+                });
+            } else if (currentTrack.theme === 'desert') {
+                [[60, 90], [1130, 110], [70, 570], [1130, 650], [420, 470], [810, 440]].forEach(([x, y]) => {
+                    trackCtx.fillStyle = '#8b5e34';
+                    trackCtx.beginPath();
+                    trackCtx.ellipse(x, y + 10, 28, 12, 0, 0, Math.PI * 2);
+                    trackCtx.fill();
+                    trackCtx.fillStyle = '#15803d';
+                    trackCtx.fillRect(x - 4, y - 22, 8, 34);
+                    trackCtx.fillRect(x - 13, y - 8, 12, 6);
+                    trackCtx.fillRect(x + 2, y - 1, 12, 6);
+                });
+            } else if (currentTrack.theme === 'snow') {
+                [[60, 100], [1130, 90], [75, 590], [1120, 640], [440, 460], [820, 450]].forEach(([x, y], i) => {
+                    trackCtx.fillStyle = i % 2 ? '#94a3b8' : '#64748b';
+                    trackCtx.beginPath();
+                    trackCtx.moveTo(x - 34, y + 22);
+                    trackCtx.lineTo(x, y - 30);
+                    trackCtx.lineTo(x + 34, y + 22);
+                    trackCtx.closePath();
+                    trackCtx.fill();
+                    trackCtx.fillStyle = '#f8fafc';
+                    trackCtx.beginPath();
+                    trackCtx.moveTo(x - 13, y - 10);
+                    trackCtx.lineTo(x, y - 30);
+                    trackCtx.lineTo(x + 13, y - 10);
+                    trackCtx.closePath();
+                    trackCtx.fill();
+                });
+            } else {
+                const trees = [
+                    {x: 60, y: 60}, {x: 1140, y: 70}, {x: 1140, y: 680}, {x: 60, y: 680},
+                    {x: 550, y: 450}, {x: 680, y: 450}, {x: 820, y: 420}, {x: 330, y: 420}
+                ];
+                trees.forEach(t => {
+                    trackCtx.fillStyle = 'rgba(0,0,0,0.25)';
+                    trackCtx.beginPath();
+                    trackCtx.arc(t.x + 5, t.y + 5, 22, 0, Math.PI * 2);
+                    trackCtx.fill();
+                    trackCtx.fillStyle = '#065f46';
+                    trackCtx.beginPath();
+                    trackCtx.arc(t.x, t.y, 22, 0, Math.PI * 2);
+                    trackCtx.fill();
+                    trackCtx.fillStyle = '#059669';
+                    trackCtx.beginPath();
+                    trackCtx.arc(t.x - 4, t.y - 4, 14, 0, Math.PI * 2);
+                    trackCtx.fill();
+                });
+            }
+
             trackCtx.fillStyle = '#475569';
             trackCtx.fillRect(460, 705, 280, 32);
             trackCtx.fillStyle = '#cbd5e1';
             trackCtx.fillRect(465, 710, 270, 8);
-            trackCtx.fillStyle = '#ef4444';
+            trackCtx.fillStyle = currentTrack.palette.kerb;
             trackCtx.fillRect(465, 722, 270, 8);
-
-            // Árvores decorativas em pontos seguros longe do asfalto
-            const trees = [
-                {x: 60, y: 60}, {x: 1140, y: 70}, {x: 1140, y: 680}, {x: 60, y: 680},
-                {x: 550, y: 450}, {x: 680, y: 450}, {x: 820, y: 420}, {x: 330, y: 420}
-            ];
-            trees.forEach(t => {
-                trackCtx.fillStyle = 'rgba(0,0,0,0.25)';
-                trackCtx.beginPath();
-                trackCtx.arc(t.x + 5, t.y + 5, 22, 0, Math.PI * 2);
-                trackCtx.fill();
-
-                trackCtx.fillStyle = '#065f46';
-                trackCtx.beginPath();
-                trackCtx.arc(t.x, t.y, 22, 0, Math.PI * 2);
-                trackCtx.fill();
-
-                trackCtx.fillStyle = '#059669';
-                trackCtx.beginPath();
-                trackCtx.arc(t.x - 4, t.y - 4, 14, 0, Math.PI * 2);
-                trackCtx.fill();
-            });
         }
 
         /**
@@ -512,9 +688,12 @@ Developer: Reload Window<!DOCTYPE html>
             const g = cachedPixels[idx + 1];
             const b = cachedPixels[idx + 2];
 
-            // Cor da grama (#15803d / #166534) tem verde muito dominante; o guard-rail (#94a3b8) também bloqueia
-            const isGrass = (g > r + 35 && g > b + 20);
-            const isGuardRail = (r === 148 && g === 163 && b === 184);
+            const isGrass = trackCollisionColors.some(color =>
+                Math.abs(r - color.r) < 18 && Math.abs(g - color.g) < 18 && Math.abs(b - color.b) < 18
+            );
+            const isGuardRail = Math.abs(r - trackRailColor.r) < 18
+                && Math.abs(g - trackRailColor.g) < 18
+                && Math.abs(b - trackRailColor.b) < 18;
             return !isGrass && !isGuardRail;
         }
 
@@ -1039,6 +1218,7 @@ Developer: Reload Window<!DOCTYPE html>
 
         function startLocalGame() {
             getPlayerInfo();
+            const player2Name = document.getElementById('player2NameInput').value.trim() || 'Jogador 2';
             isHost = true;
             isSoloBot = true;
             isLocalGame = true;
@@ -1048,7 +1228,7 @@ Developer: Reload Window<!DOCTYPE html>
             Object.assign(player2Keys, { up: false, down: false, left: false, right: false });
             players = {
                 player1: new Car('player1', myName, myColor, 0),
-                player2: new Car('player2', 'Jogador 2', '#3b82f6', 1)
+                player2: new Car('player2', player2Name, player2Color, 1)
             };
             if (document.getElementById('includeLocalBot').checked) {
                 players.bot1 = new Car('bot1', 'Computador', '#f59e0b', 2, true);
@@ -1079,6 +1259,7 @@ Developer: Reload Window<!DOCTYPE html>
                 syncPlayersFromNetwork(data.players);
                 updateLobbyListUI();
             } else if (data.type === 'START_COUNTDOWN') {
+                if (data.trackId && TRACKS[data.trackId]) selectTrack(data.trackId);
                 syncPlayersFromNetwork(data.players);
                 beginCountdown();
             } else if (data.type === 'STATE_UPDATE') {
@@ -1186,6 +1367,7 @@ Developer: Reload Window<!DOCTYPE html>
 
         function hostStartRace() {
             if (!isHost) return;
+            chooseRaceTrack();
             skidMarks = [];
             Object.values(players).forEach((p, idx) => {
                 p.index = idx;
@@ -1193,7 +1375,7 @@ Developer: Reload Window<!DOCTYPE html>
             });
 
             if (!isSoloBot) {
-                const payload = { type: 'START_COUNTDOWN', players: serializePlayers() };
+                const payload = { type: 'START_COUNTDOWN', trackId: currentTrackId, players: serializePlayers() };
                 Object.values(connections).forEach(c => c.send(payload));
             }
             beginCountdown();
